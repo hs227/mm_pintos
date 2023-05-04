@@ -51,59 +51,146 @@ void userprog_init(void) {
    before process_execute() returns.  Returns the new process's
    process id, or TID_ERROR if the thread cannot be created. */
 pid_t process_execute(const char* file_name) {
-  char* fn_copy;
+  const char* args=file_name;
+  char* name;
+  size_t name_len;
   tid_t tid;
 
-  sema_init(&temporary, 0);
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page(0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy(fn_copy, file_name, PGSIZE);
+  /* semaphore */
+  sema_init(&temporary,0);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page(fn_copy);
+  /* extract file_name */
+  name_len=strcspn(args," ")+1;
+  name=palloc_get_page(0);
+  if(name==NULL){
+    return TID_ERROR;
+  }
+  strlcpy(name,args,name_len);
+
+  /* create a new thread to execute FILE_NAME */
+  tid=thread_create(name,PRI_DEFAULT,start_process,args);
+  palloc_free_page(name);
+
   return tid;
 }
+
+/* delete the more space in str */
+static void modify_str_space(char* src,char* des)
+{
+  char* current=des;
+  char *last=NULL,*next=src;
+  while(*next!='\0'){
+    if(last&&*last==' '&&*next==' '){
+      /* do nothing */
+    }else{
+      *current=*next;
+      current++;
+    }
+    last=next;
+    next++;
+  }
+  *current='\0';
+}
+
+
+static void fillup_stack(char* file_name,struct intr_frame* if_)
+{
+#define STR_LEN 512
+#define ARGV_LEN 64
+
+  size_t fn_size=strlen(file_name)+1;
+  char buf[STR_LEN];
+  char* finder=buf-1;
+  uint32_t argvs[ARGV_LEN];
+  uint32_t argc=1;
+  int i;
+
+  uint32_t more;
+
+  uint32_t argv_tmp;
+  uint32_t argc_tmp;
+  uint32_t rs_tmp=0;
+
+
+  modify_str_space(file_name,buf);
+  memset(argvs,0x0,sizeof(uint32_t)*ARGV_LEN);
+
+  /* 1.push the argv[i][...] */
+  if_->esp-=sizeof(char)*fn_size;
+  argvs[0]=if_->esp;
+  while((finder=strchr(finder+1,' '))!=NULL){
+    argvs[argc]=(finder-buf+1)+if_->esp;
+    *finder='\0';
+    argc++;
+  }
+  memcpy(if_->esp,buf,fn_size);
+
+  /* 2.push the stack-align */
+  more=(uint32_t)(if_->esp-(sizeof(uint32_t)*(1+1+argc+1)))%16;
+  if_->esp-=more;
+  memset(if_->esp,0,sizeof(uint8_t)*more);
+
+  /* 3.push the argv[i] */
+  if_->esp-=(argc+1)*sizeof(uint32_t);
+  memcpy(if_->esp,argvs,sizeof(uint32_t)*(argc+1));
+
+  /* 4.push the argv ad argc */
+  argv_tmp=if_->esp;
+  if_->esp-=sizeof(uint32_t);
+  memcpy(if_->esp,&argv_tmp,sizeof(uint32_t));
+  argc_tmp=argc;
+  if_->esp-=sizeof(uint32_t);
+  memcpy(if_->esp,&argc_tmp,sizeof(uint32_t));
+
+  /* 5.push the valid return address */
+  if_->esp-=sizeof(uint32_t);
+  memcpy(if_->esp,&rs_tmp,sizeof(uint32_t));
+
+#undef ARGV_LEN
+#undef STR_LEN
+}
+
+
 
 /* A thread function that loads a user process and starts it
    running. */
 static void start_process(void* file_name_) {
-  char* file_name = (char*)file_name_;
+#define FN_LEN 512
+  char file_name[FN_LEN];
+  size_t file_name_len;
   struct thread* t = thread_current();
   struct intr_frame if_;
-  bool success, pcb_success;
+  bool if_success, pcb_success;
 
   /* Allocate process control block */
   struct process* new_pcb = malloc(sizeof(struct process));
-  success = pcb_success = new_pcb != NULL;
+  pcb_success = new_pcb != NULL;
 
-  /* Initialize process control block */
-  if (success) {
-    // Ensure that timer_interrupt() -> schedule() -> process_activate()
-    // does not try to activate our uninitialized pagedir
+  file_name_len=strcspn(file_name_," ");
+  memcpy(file_name,file_name_,file_name_len);
+  file_name[file_name_len]='\0';
+
+
+  if (pcb_success) {
+    /* Initialize process control block */
     new_pcb->pagedir = NULL;
     t->pcb = new_pcb;
-
-    // Continue initializing the PCB as normal
     t->pcb->main_thread = t;
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
-  }
 
-  /* Initialize interrupt frame and load executable. */
-  if (success) {
+    /* Initialize interrupt frame and load executable. */
     memset(&if_, 0, sizeof if_);
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
-    success = load(file_name, &if_.eip, &if_.esp);
+    if_success = load(file_name, &if_.eip, &if_.esp);
+
+
   }
 
+
   /* Handle failure with succesful PCB malloc. Must free the PCB */
-  if (!success && pcb_success) {
+  if (pcb_success && !if_success) {
     // Avoid race where PCB is freed before t->pcb is set to NULL
     // If this happens, then an unfortuantely timed timer interrupt
     // can try to activate the pagedir, but it is now freed memory
@@ -113,11 +200,13 @@ static void start_process(void* file_name_) {
   }
 
   /* Clean up. Exit on failure or jump to userspace */
-  palloc_free_page(file_name);
-  if (!success) {
+  if (!pcb_success || !if_success) {
     sema_up(&temporary);
     thread_exit();
   }
+
+  /* build the argv and argc */
+  fillup_stack(file_name_,&if_);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -127,6 +216,7 @@ static void start_process(void* file_name_) {
      and jump to it. */
   asm volatile("movl %0, %%esp; jmp intr_exit" : : "g"(&if_) : "memory");
   NOT_REACHED();
+#undef FN_LEN
 }
 
 /* Waits for process with PID child_pid to die and returns its exit status.
@@ -147,6 +237,7 @@ int process_wait(pid_t child_pid UNUSED) {
 void process_exit(void) {
   struct thread* cur = thread_current();
   uint32_t* pd;
+  char buf[1024];
 
   /* If this thread does not have a PCB, don't worry */
   if (cur->pcb == NULL) {
@@ -177,6 +268,10 @@ void process_exit(void) {
   struct process* pcb_to_free = cur->pcb;
   cur->pcb = NULL;
   free(pcb_to_free);
+
+  //snprintf(buf,sizeof buf, "%s: exit(-1)",cur->name);
+
+  //printf("%s: exit(%d)\n",cur->name,);
 
   sema_up(&temporary);
   thread_exit();
@@ -473,7 +568,7 @@ static bool setup_stack(void** esp) {
   if (kpage != NULL) {
     success = install_page(((uint8_t*)PHYS_BASE) - PGSIZE, kpage, true);
     if (success)
-      *esp = PHYS_BASE-(0xc+0x8);
+      *esp = PHYS_BASE;
     else
       palloc_free_page(kpage);
   }
