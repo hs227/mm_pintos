@@ -44,6 +44,9 @@ void userprog_init(void) {
 
   /* Kill the kernel if we did not succeed */
   ASSERT(success);
+
+
+  sema_init(&t->pcb->sema,0);
 }
 
 /* Starts a new thread running a user program loaded from
@@ -51,24 +54,47 @@ void userprog_init(void) {
    before process_execute() returns.  Returns the new process's
    process id, or TID_ERROR if the thread cannot be created. */
 pid_t process_execute(const char* file_name) {
-  const char* args=file_name;
+  char* fn_copy;
+  tid_t tid;
   char* name;
   size_t name_len;
-  tid_t tid;
 
-  /* semaphore */
-  sema_init(&temporary,0);
+  struct file* file_check=NULL;
+
+
+  fn_copy=palloc_get_page(0);
+  if(fn_copy==NULL){
+    return TID_ERROR;
+  }
+  strlcpy(fn_copy,file_name,strlen(file_name)+1);
 
   /* extract file_name */
-  name_len=strcspn(args," ")+1;
+  name_len=strcspn(fn_copy," ")+1;
   name=palloc_get_page(0);
   if(name==NULL){
     return TID_ERROR;
   }
-  strlcpy(name,args,name_len);
+  strlcpy(name,fn_copy,name_len);
+  name[name_len]='\0';
 
-  /* create a new thread to execute FILE_NAME */
-  tid=thread_create(name,PRI_DEFAULT,start_process,args);
+  /* Check if the file exist */
+  if(file_check=filesys_open(name)){
+    /* exist */
+    file_close(file_check);
+  }else{
+    /* not exist */
+    palloc_free_page(fn_copy);
+    palloc_free_page(name);
+    return -1;
+  }
+
+
+
+  /* Create a new thread to execute FILE_NAME */
+  tid=thread_create(name,PRI_DEFAULT,start_process,fn_copy);
+  if(tid==TID_ERROR){
+    palloc_free_page(fn_copy);
+  }
   palloc_free_page(name);
 
   return tid;
@@ -176,6 +202,7 @@ static void start_process(void* file_name_) {
     new_pcb->pagedir = NULL;
     t->pcb = new_pcb;
     t->pcb->main_thread = t;
+    sema_init(&t->pcb->sema,0);
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
 
     /* Initialize interrupt frame and load executable. */
@@ -201,7 +228,8 @@ static void start_process(void* file_name_) {
 
   /* Clean up. Exit on failure or jump to userspace */
   if (!pcb_success || !if_success) {
-    sema_up(&temporary);
+    palloc_free_page(file_name_);
+    sema_up(&t->father->sema);
     thread_exit();
   }
 
@@ -229,7 +257,7 @@ static void start_process(void* file_name_) {
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int process_wait(pid_t child_pid UNUSED) {
-  sema_down(&temporary);
+  sema_down(&thread_current()->pcb->sema);
   return 0;
 }
 
@@ -237,7 +265,6 @@ int process_wait(pid_t child_pid UNUSED) {
 void process_exit(void) {
   struct thread* cur = thread_current();
   uint32_t* pd;
-  char buf[1024];
 
   /* If this thread does not have a PCB, don't worry */
   if (cur->pcb == NULL) {
@@ -269,11 +296,7 @@ void process_exit(void) {
   cur->pcb = NULL;
   free(pcb_to_free);
 
-  //snprintf(buf,sizeof buf, "%s: exit(-1)",cur->name);
-
-  //printf("%s: exit(%d)\n",cur->name,);
-
-  sema_up(&temporary);
+  sema_up(&thread_current()->father->sema);
   thread_exit();
 }
 

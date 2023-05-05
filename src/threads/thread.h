@@ -96,6 +96,11 @@ struct thread {
 #ifdef USERPROG
   /* Owned by process.c. */
   struct process* pcb; /* Process control block if this thread is a userprog */
+
+  /* Mycode */
+  struct process* father;
+
+
 #endif
 
   /* Owned by thread.c. */
