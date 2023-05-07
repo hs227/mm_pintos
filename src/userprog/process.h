@@ -17,6 +17,40 @@ typedef tid_t pid_t;
 typedef void (*pthread_fun)(void*);
 typedef void (*stub_fun)(pthread_fun, void*);
 
+#define FD_TABLE_SIZE 16
+struct file_descriptor{
+  uint8_t fd_flags;
+  struct file* file_ptr;
+};
+
+struct file_descriptor_table{
+  struct file_descriptor fds[FD_TABLE_SIZE];
+  uint8_t cur;// point to next empty
+
+};
+
+int next_empty_fdt(struct file_descriptor_table* fd_table);
+struct file* release_fd_fdt(struct file_descriptor_table* fd_table,int fd);
+struct file* get_file_fdt(struct file_descriptor_table* fd_table,int fd);
+
+
+#define CP_TABLE_SIZE 16
+
+struct child_proc{
+  tid_t id;
+  int child_res;
+};
+
+struct child_proc_table{
+  struct child_proc cps[CP_TABLE_SIZE];
+  uint8_t cur;// point to next empty
+};
+
+int next_empty_child_cpt(struct child_proc_table* cp_table);
+int child_return_cpt(struct child_proc_table* cp_table,struct process* child,int res);
+int father_wait_cpt(struct child_proc_table* cp_table,struct process* father,pid_t id);
+
+
 /* The process control block for a given process. Since
    there can be multiple threads per process, we need a separate
    PCB from the TCB. All TCBs in a process will have a pointer
@@ -29,6 +63,10 @@ struct process {
   struct thread* main_thread; /* Pointer to main thread */
 
   struct semaphore sema;
+
+  struct file_descriptor_table fd_table;
+  struct child_proc_table cp_table;
+  int exit_return;
 };
 
 void userprog_init(void);

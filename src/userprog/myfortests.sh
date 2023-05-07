@@ -21,6 +21,8 @@ pintos-test stack-align-4  | tee -a formytest.res
 pintos-test do-nothing     | tee -a formytest.res
 pintos-test iloveos        | tee -a formytest.res
 pintos-test practice       | tee -a formytest.res
+#pintos-test exit           | tee -a formytest.res
+pintos-test halt           | tee -a formytest.res
 
 # checkpoint2
 pintos-test exec-arg       | tee -a formytest.res
@@ -31,6 +33,52 @@ pintos-test exec-bound-3   | tee -a formytest.res
 pintos-test exec-missing   | tee -a formytest.res
 pintos-test exec-multiple  | tee -a formytest.res
 pintos-test exec-once      | tee -a formytest.res
+pintos-test create-bad-ptr | tee -a formytest.res
+pintos-test create-bound   | tee -a formytest.res
+pintos-test create-empty   | tee -a formytest.res
+pintos-test create-exists  | tee -a formytest.res
+pintos-test create-long    | tee -a formytest.res
+pintos-test create-normal  | tee -a formytest.res
+pintos-test create-null    | tee -a formytest.res
+pintos-test open-bad-ptr   | tee -a formytest.res
+pintos-test open-boundary  | tee -a formytest.res
+pintos-test open-empty     | tee -a formytest.res
+pintos-test open-missing   | tee -a formytest.res
+pintos-test open-normal    | tee -a formytest.res
+pintos-test open-null      | tee -a formytest.res
+pintos-test open-twice     | tee -a formytest.res
+pintos-test read-bad-fd    | tee -a formytest.res
+pintos-test read-bad-ptr   | tee -a formytest.res
+pintos-test read-boundary  | tee -a formytest.res
+pintos-test read-normal    | tee -a formytest.res
+pintos-test read-stdout    | tee -a formytest.res
+pintos-test read-zero      | tee -a formytest.res
+pintos-test write-bad-fd   | tee -a formytest.res
+pintos-test write-bad-ptr  | tee -a formytest.res
+pintos-test write-boundary | tee -a formytest.res
+pintos-test write-normal   | tee -a formytest.res
+pintos-test write-stdin    | tee -a formytest.res
+pintos-test write-zero     | tee -a formytest.res
+pintos-test close-bad-fd   | tee -a formytest.res
+pintos-test close-normal   | tee -a formytest.res
+pintos-test close-stdin    | tee -a formytest.res
+pintos-test close-stdout   | tee -a formytest.res
+pintos-test close-twice    | tee -a formytest.res
+pintos-test multi-child-fd | tee -a formytest.res
+pintos-test multi-recurse  | tee -a formytest.res
+pintos-test rox-simple     | tee -a formytest.res
+#pintos-test rox-child      | tee -a formytest.res
+#pintos-test rox-multichild | tee -a formytest.res
+pintos-test sc-bad-arg     | tee -a formytest.res
+pintos-test sc-bad-sp      | tee -a formytest.res
+pintos-test sc-boundary-2  | tee -a formytest.res
+pintos-test sc-boundary-3  | tee -a formytest.res
+pintos-test sc-boundary    | tee -a formytest.res
+pintos-test wait-bad-pid   | tee -a formytest.res
+pintos-test wait-killed    | tee -a formytest.res
+pintos-test wait-simple    | tee -a formytest.res
+pintos-test wait-twice     | tee -a formytest.res
+
 
 
 

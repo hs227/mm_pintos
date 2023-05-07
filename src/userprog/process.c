@@ -25,6 +25,10 @@ static thread_func start_process NO_RETURN;
 static thread_func start_pthread NO_RETURN;
 static bool load(const char* file_name, void (**eip)(void), void** esp);
 bool setup_thread(void (**eip)(void), void** esp);
+static void init_fdt(struct file_descriptor_table* fd_table);
+static void init_cpt(struct child_proc_table* cp_table);
+
+
 
 /* Initializes user programs in the system by ensuring the main
    thread has a minimal PCB so that it can execute and wait for
@@ -47,7 +51,170 @@ void userprog_init(void) {
 
 
   sema_init(&t->pcb->sema,0);
+  init_fdt(&t->pcb->fd_table);
+  init_cpt(&t->pcb->cp_table);
+  t->pcb->exit_return=-1;
 }
+
+/* the optimize way is bitmap */
+/* mycode: */
+static void init_fdt(struct file_descriptor_table* fd_table)
+{
+  int i;
+  for(i=0;i<FD_TABLE_SIZE;++i){
+    fd_table->fds[i].fd_flags=0;
+    fd_table->fds[i].file_ptr=NULL;
+  }
+
+  /* init the standard IO */
+  fd_table->fds[STDIN_FILENO].fd_flags=1;
+  fd_table->fds[STDOUT_FILENO].fd_flags=1;
+
+  /* init the cur */
+  fd_table->cur=2;
+}
+
+/* mycode: close file_descriptor_table */
+static void destory_fdt(struct file_descriptor_table* fd_table)
+{
+  int i;
+  for(i=2;i<FD_TABLE_SIZE;++i){
+    if(fd_table->fds[i].fd_flags==1){
+      file_close(fd_table->fds[i].file_ptr);
+    }
+  }
+}
+
+/* mycode: */
+static int inc_cur_fdt(struct file_descriptor_table* fd_table)
+{
+  fd_table->cur=(fd_table->cur+1)%FD_TABLE_SIZE;
+  return fd_table->cur;
+}
+/* mycode: */
+static int dec_cur_fdt(struct file_descriptor_table* fd_table)
+{
+  fd_table->cur=(fd_table->cur-1+FD_TABLE_SIZE)%FD_TABLE_SIZE;
+  return fd_table->cur;
+}
+/* mycode: next empty (-1 means the full) */
+int next_empty_fd_table(struct file_descriptor_table* fd_table)
+{
+  int i;
+  int head=fd_table->cur;
+  if(fd_table->fds[head].fd_flags==0){
+    return head;
+  }
+  for(i=inc_cur_fdt(fd_table);i!=head;i=inc_cur_fdt(fd_table)){
+    if(fd_table->fds[i].fd_flags==0){
+      return i;
+    }
+  }
+  // the fd_table is full
+  ASSERT(!"the fd_table is full");
+  return -1;
+}
+
+/* mycode: release a fd */
+struct file* release_fd_fdt(struct file_descriptor_table*fd_table,int fd)
+{
+  if(fd>STDOUT_FILENO&&fd<FD_TABLE_SIZE){
+    if(fd_table->fds[fd].fd_flags==1){
+      fd_table->fds[fd].fd_flags=0;
+      return fd_table->fds[fd].file_ptr;
+    }
+  }
+  return NULL;
+}
+
+/* mycode: get the file by fd */
+struct file* get_file_fdt(struct file_descriptor_table* fd_table,int fd)
+{
+  if(fd>STDOUT_FILENO&&fd<FD_TABLE_SIZE){
+    if(fd_table->fds[fd].fd_flags==1){
+      return fd_table->fds[fd].file_ptr;
+    }
+  }
+  return NULL;
+}
+
+/* mycode: about the child_proc_table */
+static void init_cpt(struct child_proc_table* cp_table)
+{
+  int i;
+  for(i=0;i<CP_TABLE_SIZE;++i){
+    cp_table->cps[i].id=-1;
+    cp_table->cps[i].child_res=0;
+  }
+
+  /* init the cur */
+  cp_table->cur=0;
+}
+
+/* mycode: close child_proc_table */
+static void destory_cpt(struct child_proc_table* cp_table)
+{
+  // do nothing
+}
+
+/* mycode: */
+static int inc_cur_cpt(struct child_proc_table* cp_table)
+{
+  cp_table->cur=(cp_table->cur+1)%CP_TABLE_SIZE;
+  return cp_table->cur;
+}
+
+/* mycode: */
+static int dec_cur_cpt(struct child_proc_table* cp_table)
+{
+  cp_table->cur=(cp_table->cur-1+CP_TABLE_SIZE)%CP_TABLE_SIZE;
+  return cp_table->cur;
+}
+
+/* mycode: next empty (-1 means the cp_table full) */
+int next_empty_child_cpt(struct child_proc_table* cp_table)
+{
+  int i;
+  int head=cp_table->cur;
+  if(cp_table->cps[head].id==-1){
+    return head;
+  }
+  for(i=inc_cur_cpt(cp_table);i!=head;i=inc_cur_cpt(cp_table)){
+    if(cp_table->cps[i].id==-1){
+      return i;
+    }
+  }
+  // the cp_table is full
+  ASSERT(!"the child_cpt is full");
+  return -1;
+}
+
+/* mycode: child send the exit_res */
+int child_return_cpt(struct child_proc_table* cp_table,struct process* child,int res)
+{
+  int i;
+  pid_t pid=get_pid(child);
+  for(i=0;i<CP_TABLE_SIZE;++i){
+    if(cp_table->cps[i].id==pid){
+      cp_table->cps[i].child_res=res;
+      return;
+    }
+  }
+  return -1;
+}
+
+/* mycode: father only wait child */
+int father_wait_cpt(struct child_proc_table* cp_table,struct process* father,pid_t id)
+{
+  int i;
+  for(i=0;i<CP_TABLE_SIZE;++i){
+    if(cp_table->cps[i].id==id){
+      return i;
+    }
+  }
+  return -1;
+}
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -60,7 +227,7 @@ pid_t process_execute(const char* file_name) {
   size_t name_len;
 
   struct file* file_check=NULL;
-
+  struct thread* t=thread_current();
 
   fn_copy=palloc_get_page(0);
   if(fn_copy==NULL){
@@ -96,6 +263,13 @@ pid_t process_execute(const char* file_name) {
     palloc_free_page(fn_copy);
   }
   palloc_free_page(name);
+
+  /* register the cp_table */
+  if(tid!=TID_ERROR){
+    int cp=next_empty_child_cpt(&t->pcb->cp_table);
+    t->pcb->cp_table.cps[cp].id=tid;
+  }
+
 
   return tid;
 }
@@ -204,6 +378,9 @@ static void start_process(void* file_name_) {
     t->pcb->main_thread = t;
     sema_init(&t->pcb->sema,0);
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
+    init_fdt(&t->pcb->fd_table);
+    init_cpt(&t->pcb->cp_table);
+    t->pcb->exit_return=-1;
 
     /* Initialize interrupt frame and load executable. */
     memset(&if_, 0, sizeof if_);
@@ -230,6 +407,7 @@ static void start_process(void* file_name_) {
   if (!pcb_success || !if_success) {
     palloc_free_page(file_name_);
     sema_up(&t->father->sema);
+    destory_fdt(&t->pcb->fd_table);
     thread_exit();
   }
 
@@ -257,8 +435,15 @@ static void start_process(void* file_name_) {
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int process_wait(pid_t child_pid UNUSED) {
-  sema_down(&thread_current()->pcb->sema);
-  return 0;
+  struct thread* t=thread_current();
+  int child=father_wait_cpt(&t->pcb->cp_table,t->pcb,child_pid);
+  if(child!=-1){
+    // child to wait
+    sema_down(&t->pcb->sema);
+    t->pcb->cp_table.cps[child].id=-1;
+    return t->pcb->cp_table.cps[child].child_res;
+  }
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -270,6 +455,10 @@ void process_exit(void) {
   if (cur->pcb == NULL) {
     thread_exit();
     NOT_REACHED();
+  }
+
+  if(cur->father){
+    child_return_cpt(&cur->father->cp_table,cur->pcb,cur->pcb->exit_return);
   }
 
   /* Destroy the current process's page directory and switch back
@@ -297,6 +486,7 @@ void process_exit(void) {
   free(pcb_to_free);
 
   sema_up(&thread_current()->father->sema);
+  destory_fdt(&pcb_to_free->fd_table);
   thread_exit();
 }
 

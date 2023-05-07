@@ -100,7 +100,6 @@ struct thread {
   /* Mycode */
   struct process* father;
 
-
 #endif
 
   /* Owned by thread.c. */
