@@ -79,7 +79,7 @@ pintos-test wait-killed    | tee -a formytest.res
 pintos-test wait-simple    | tee -a formytest.res
 pintos-test wait-twice     | tee -a formytest.res
 
-
+#final check
 
 
 
