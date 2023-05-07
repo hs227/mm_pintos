@@ -33,6 +33,15 @@ struct inode {
   struct inode_disk data; /* Inode content. */
 };
 
+/* mycode: */
+int inode_open_cnt(struct inode* inode)
+{
+  if(inode==NULL){
+    return 0;
+  }
+  return inode->open_cnt;
+}
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset

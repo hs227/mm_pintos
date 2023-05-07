@@ -227,6 +227,8 @@ pid_t process_execute(const char* file_name) {
   size_t name_len;
 
   struct file* file_check=NULL;
+  struct dir* dir=dir_open_root();
+  struct inode* inode=NULL;
   struct thread* t=thread_current();
 
   fn_copy=palloc_get_page(0);
@@ -245,16 +247,15 @@ pid_t process_execute(const char* file_name) {
   name[name_len]='\0';
 
   /* Check if the file exist */
-  if(file_check=filesys_open(name)){
-    /* exist */
+  file_check=filesys_open(name);
+  if(file_check!=NULL){
     file_close(file_check);
   }else{
-    /* not exist */
+  /* not exist */
     palloc_free_page(fn_copy);
     palloc_free_page(name);
     return -1;
   }
-
 
 
   /* Create a new thread to execute FILE_NAME */
@@ -450,6 +451,7 @@ int process_wait(pid_t child_pid UNUSED) {
 void process_exit(void) {
   struct thread* cur = thread_current();
   uint32_t* pd;
+  struct file* file;
 
   /* If this thread does not have a PCB, don't worry */
   if (cur->pcb == NULL) {
@@ -459,6 +461,12 @@ void process_exit(void) {
 
   if(cur->father){
     child_return_cpt(&cur->father->cp_table,cur->pcb,cur->pcb->exit_return);
+  }
+
+  file=file_open(cur->pcb->process_name);
+  if(file){
+    file_allow_write(file);
+    file_close(file);
   }
 
   /* Destroy the current process's page directory and switch back
@@ -596,6 +604,7 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
+
 
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||

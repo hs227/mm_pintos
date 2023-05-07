@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h"
+#include "filesys/inode.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
 
@@ -200,7 +202,6 @@ static void syscall_exit(struct intr_frame* f UNUSED,uint32_t* args)
 /* SYS_EXEC */
 static void syscall_exec(struct intr_frame* f UNUSED,uint32_t* args)
 {
-  struct thread* t=thread_current();
   f->eax=process_execute(args[1]);
 }
 
@@ -313,10 +314,6 @@ static void syscall_write(struct intr_frame* f UNUSED,uint32_t* args)
   if(file==NULL){
     return;
   }
-  if(file_tell(file)){
-    f->eax=0;
-    return;
-  }
   f->eax=file_write(file,buffer,size);
 
 }
@@ -333,7 +330,7 @@ static void syscall_seek(struct intr_frame* f UNUSED,uint32_t* args)
   if(file==NULL){
     return;
   }
-  f->eax=file_seek(file,position);
+  file_seek(file,position);
 
 }
 /* SYS_TELL */
@@ -361,7 +358,7 @@ static void syscall_close(struct intr_frame* f UNUSED,uint32_t* args)
   if(file==NULL){
     return;
   }
-  f->eax=file_close(file);
+  file_close(file);
   pcb->fd_table.fds[fd].fd_flags=0;
   pcb->fd_table.fds[fd].file_ptr=NULL;
 

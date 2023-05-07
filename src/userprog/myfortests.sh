@@ -67,8 +67,8 @@ pintos-test close-twice    | tee -a formytest.res
 pintos-test multi-child-fd | tee -a formytest.res
 pintos-test multi-recurse  | tee -a formytest.res
 pintos-test rox-simple     | tee -a formytest.res
-#pintos-test rox-child      | tee -a formytest.res
-#pintos-test rox-multichild | tee -a formytest.res
+pintos-test rox-child      | tee -a formytest.res
+pintos-test rox-multichild | tee -a formytest.res
 pintos-test sc-bad-arg     | tee -a formytest.res
 pintos-test sc-bad-sp      | tee -a formytest.res
 pintos-test sc-boundary-2  | tee -a formytest.res
