@@ -11,6 +11,7 @@ static lock_t console_lock;
 const char* test_name;
 bool quiet = false;
 bool syn_msg = false;
+char fpu[108];
 
 void console_init() { lock_check_init(&console_lock); }
 
@@ -66,15 +67,24 @@ static void swap(void* a_, void* b_, size_t size) {
 
 /* Pushes hardcoded values to the FPU */
 void push_values_to_fpu(int* values, int n) {
+  //char my_fpu[108];
+  //asm("finit");
   for (int i = 0; i < n; i++) {
     fpu_push(values[i]);
   }
+  //asm("fsave (%0)"::"g"(&my_fpu));
+  //memcpy(fpu,my_fpu,sizeof(char)*108);
 }
 
 /* Pops hardcoded values from FPU and returns if the values are correct */
 bool pop_values_from_fpu(int* values, int n) {
+  //char my_fpu[108];
+  //memcpy(my_fpu,fpu,sizeof(char)*108);
+  //asm("frstor (%0)"::"g"(&my_fpu));
+
   for (int i = n - 1; i >= 0; i--) {
-    if (values[i] != fpu_pop())
+    int val=fpu_pop();
+    if (values[i] != val)
       return false;
   }
   return true;

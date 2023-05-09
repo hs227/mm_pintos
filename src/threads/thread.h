@@ -99,7 +99,8 @@ struct thread {
 
   /* Mycode */
   struct process* father;
-
+  uint8_t fpu[108];
+  
 #endif
 
   /* Owned by thread.c. */

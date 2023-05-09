@@ -67,6 +67,8 @@ struct process {
   struct file_descriptor_table fd_table;
   struct child_proc_table cp_table;
   int exit_return;
+
+
 };
 
 void userprog_init(void);

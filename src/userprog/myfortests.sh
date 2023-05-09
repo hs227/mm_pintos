@@ -80,6 +80,14 @@ pintos-test wait-simple    | tee -a formytest.res
 pintos-test wait-twice     | tee -a formytest.res
 
 #final check
+pintos-test floating-point | tee -a formytest.res
+pintos-test fp-asm         | tee -a formytest.res
+pintos-test fp-init        | tee -a formytest.res
+pintos-test fp-kernel-e    | tee -a formytest.res
+pintos-test fp-simul       | tee -a formytest.res
+pintos-test fp-syscall     | tee -a formytest.res
+pintos-test fp-kasm        | tee -a formytest.res
+pintos-test fp-kinit       | tee -a formytest.res
 
 
 

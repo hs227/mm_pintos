@@ -60,7 +60,9 @@ void sema_down(struct semaphore* sema) {
 
   ASSERT(sema != NULL);
   ASSERT(!intr_context());
-
+  
+  //asm("fsave (%0)"::"g"(&thread_current()->fpu));
+  
   old_level = intr_disable();
   while (sema->value == 0) {
     list_push_back(&sema->waiters, &thread_current()->elem);
@@ -68,6 +70,8 @@ void sema_down(struct semaphore* sema) {
   }
   sema->value--;
   intr_set_level(old_level);
+
+  //asm("frstor (%0)"::"g"(&thread_current()->fpu));
 }
 
 /* Down or "P" operation on a semaphore, but only if the

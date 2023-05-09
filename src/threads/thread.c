@@ -544,10 +544,15 @@ static void schedule(void) {
   ASSERT(intr_get_level() == INTR_OFF);
   ASSERT(cur->status != THREAD_RUNNING);
   ASSERT(is_thread(next));
-
-  if (cur != next)
+  asm("fsave (%0)"::"g"(&cur->fpu));
+  
+  if (cur != next){
+    //asm("fsave (%0)"::"g"(&cur->pcb->fpu));
     prev = switch_threads(cur, next);
+    //asm("frstor (%0)"::"g"(&cur->pcb->fpu));
+  }
   thread_switch_tail(prev);
+  asm("frstor (%0)"::"g"(&cur->fpu));
 }
 
 /* Returns a tid to use for a new thread. */

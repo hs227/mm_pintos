@@ -12,6 +12,7 @@
 #include "filesys/inode.h"
 #include "filesys/filesys.h"
 #include "devices/input.h"
+#include "lib/float.h"
 
 
 static void syscall_handler(struct intr_frame*);
@@ -30,7 +31,7 @@ static void syscall_seek(struct intr_frame*,uint32_t*);
 static void syscall_tell(struct intr_frame*,uint32_t*);
 static void syscall_close(struct intr_frame*,uint32_t*);
 static void syscall_practice(struct intr_frame*,uint32_t*);
-
+static void syscall_compute_e(struct intr_frame*,uint32_t*);
 
 
 static bool valid_addr(void* addr)
@@ -67,6 +68,8 @@ void syscall_init(void) {
 
 static void syscall_handler(struct intr_frame* f UNUSED) {
   uint32_t* args = ((uint32_t*)f->esp);
+  //struct thread* t=thread_current();
+  //uint8_t init_fpu[108];
   /*
    * The following print statement, if uncommented, will print out the syscall
    * number whenever a process enters a system call. You might find it useful
@@ -74,8 +77,8 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
    * include it in your final submission.
    */
 
-  //printf("System call number: %d\n", args[0]);
-  
+  //asm("fnsave (%0);fninit"::"g"(&init_fpu));
+
   /* verify the args pointer */
   /* args[0] */
   if(!verify_ptr(&args[0],sizeof(uint32_t))){
@@ -102,6 +105,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_FILESIZE:
     case SYS_TELL:
     case SYS_CLOSE:
+    case SYS_COMPUTE_E:
       if(!verify_ptr(&args[1],sizeof(uint32_t))){
         printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
         process_exit();
@@ -177,10 +181,15 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_PRACTICE: /* Returns args incremented by 1. */
       syscall_practice(f,args);
       break;
+    case SYS_COMPUTE_E: /* Computes e */
+      syscall_compute_e(f,args);
+      break;
     default:
       break;
   }
 
+  //asm("frstor (%0)"::"g"(&init_fpu));
+  
 }
 
 /* SYS_HALT */
@@ -370,7 +379,15 @@ static void syscall_practice(struct intr_frame* f,uint32_t* args)
 }
 
 
-
+/* SYS_COMPUTE_E */
+static void syscall_compute_e(struct intr_frame* f,uint32_t* args)
+{
+  int n=args[1];
+  uint8_t init_fpu[108];
+  asm("fsave (%0)"::"g"(&init_fpu));
+  f->eax=sys_sum_to_e(n);
+  asm("frstor (%0)"::"g"(&init_fpu));
+}
 
 
 

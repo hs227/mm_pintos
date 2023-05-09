@@ -406,7 +406,6 @@ static void start_process(void* file_name_) {
 
   /* Clean up. Exit on failure or jump to userspace */
   if (!pcb_success || !if_success) {
-    palloc_free_page(file_name_);
     sema_up(&t->father->sema);
     destory_fdt(&t->pcb->fd_table);
     thread_exit();
@@ -414,6 +413,12 @@ static void start_process(void* file_name_) {
 
   /* build the argv and argc */
   fillup_stack(file_name_,&if_);
+
+  /* destory the file_name_ */
+  palloc_free_page(file_name_);
+
+  /* init the fpu */
+  asm("fninit;fsave (%0)"::"g"(&t->fpu));
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -440,7 +445,9 @@ int process_wait(pid_t child_pid UNUSED) {
   int child=father_wait_cpt(&t->pcb->cp_table,t->pcb,child_pid);
   if(child!=-1){
     // child to wait
+    //asm("fsave (%0)"::"g"(&t->pcb->fpu));
     sema_down(&t->pcb->sema);
+    //asm("frstor (%0)"::"g"(&t->pcb->fpu));
     t->pcb->cp_table.cps[child].id=-1;
     return t->pcb->cp_table.cps[child].child_res;
   }
