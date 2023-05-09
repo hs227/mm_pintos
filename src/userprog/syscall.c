@@ -36,28 +36,32 @@ static void syscall_compute_e(struct intr_frame*,uint32_t*);
 
 static bool valid_addr(void* addr)
 {
+  //bool res1=is_user_vaddr(addr);
+  //bool res2=pagedir_get_page(thread_current()->pcb->pagedir,addr);
+  //return res1&&res2;
   return is_user_vaddr(addr)&&
-  pagedir_get_page(thread_current()->pcb->pagedir,addr);
+  pagedir_is_accessed(thread_current()->pcb->pagedir,addr)!=NULL;
 }
 
 static bool verify_ptr(void* ptr,size_t size)
 {
-  bool res1=valid_addr(ptr);
-  bool res2=valid_addr(ptr+size);
-  return res1&&res2;
+  //bool res1=valid_addr(ptr);
+  //bool res2=valid_addr(ptr+size);
+  //return res1&&res2;
+  return valid_addr(ptr)&&valid_addr(ptr+size);
 }
 
 static bool verify_str(char* ptr)
 {
   while(1){
     if(valid_addr(ptr)){
-      if(*(char*)ptr=='\0'){
+      if(*ptr=='\0'){
         return true;
       }
     }else{
       return false;
     }
-    ptr++; 
+    ptr++;
   }
 
 }
@@ -69,7 +73,8 @@ void syscall_init(void) {
 static void syscall_handler(struct intr_frame* f UNUSED) {
   uint32_t* args = ((uint32_t*)f->esp);
   //struct thread* t=thread_current();
-  //uint8_t init_fpu[108];
+  uint8_t init_fpu[108];
+  bool i=valid_addr(args[1]+1);
   /*
    * The following print statement, if uncommented, will print out the syscall
    * number whenever a process enters a system call. You might find it useful
@@ -77,11 +82,11 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
    * include it in your final submission.
    */
 
-  //asm("fnsave (%0);fninit"::"g"(&init_fpu));
+  asm("fnsave (%0);fninit"::"g"(&init_fpu));
 
   /* verify the args pointer */
   /* args[0] */
-  if(!verify_ptr(&args[0],sizeof(uint32_t))){
+  if(!verify_ptr(args,sizeof(uint32_t))){
     printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
     process_exit();
   }
@@ -89,13 +94,13 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
   switch(args[0]){
     case SYS_READ:
     case SYS_WRITE:
-      if(!verify_ptr(&args[3],sizeof(unsigned))){
+      if(!verify_ptr(&args[3],sizeof(uint32_t))){
         printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
         process_exit(); 
       }
     case SYS_CREATE:
     case SYS_SEEK:
-      if(!verify_ptr(&args[2],sizeof(unsigned))){
+      if(!verify_ptr(&args[2],sizeof(uint32_t))){
         printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
         process_exit();
       }
@@ -185,10 +190,12 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       syscall_compute_e(f,args);
       break;
     default:
+      printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
+      process_exit();
       break;
   }
 
-  //asm("frstor (%0)"::"g"(&init_fpu));
+  asm("frstor (%0)"::"g"(&init_fpu));
   
 }
 
@@ -383,10 +390,7 @@ static void syscall_practice(struct intr_frame* f,uint32_t* args)
 static void syscall_compute_e(struct intr_frame* f,uint32_t* args)
 {
   int n=args[1];
-  uint8_t init_fpu[108];
-  asm("fsave (%0)"::"g"(&init_fpu));
   f->eax=sys_sum_to_e(n);
-  asm("frstor (%0)"::"g"(&init_fpu));
 }
 
 

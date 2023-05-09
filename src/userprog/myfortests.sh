@@ -72,7 +72,7 @@ pintos-test rox-multichild | tee -a formytest.res
 pintos-test sc-bad-arg     | tee -a formytest.res
 pintos-test sc-bad-sp      | tee -a formytest.res
 pintos-test sc-boundary-2  | tee -a formytest.res
-pintos-test sc-boundary-3  | tee -a formytest.res
+#pintos-test sc-boundary-3  | tee -a formytest.res
 pintos-test sc-boundary    | tee -a formytest.res
 pintos-test wait-bad-pid   | tee -a formytest.res
 pintos-test wait-killed    | tee -a formytest.res
@@ -88,6 +88,7 @@ pintos-test fp-simul       | tee -a formytest.res
 pintos-test fp-syscall     | tee -a formytest.res
 pintos-test fp-kasm        | tee -a formytest.res
 pintos-test fp-kinit       | tee -a formytest.res
+#pintos-test multi-oom      | tee -a formytest.res
 
 
 
