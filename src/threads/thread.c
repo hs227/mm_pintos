@@ -28,6 +28,9 @@ static struct list fifo_ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* mycode: List of process in sleeping */
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread* idle_thread;
 
@@ -72,6 +75,7 @@ static struct thread* thread_schedule_fair(void);
 static struct thread* thread_schedule_mlfqs(void);
 static struct thread* thread_schedule_reserved(void);
 
+
 /* Determines which scheduler the kernel should use.
    Controlled by the kernel command-line options
     "-sched=fifo", "-sched=prio",
@@ -109,6 +113,7 @@ void thread_init(void) {
   lock_init(&tid_lock);
   list_init(&fifo_ready_list);
   list_init(&all_list);
+  list_init(&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread();
@@ -157,6 +162,41 @@ void thread_print_stats(void) {
   printf("Thread: %lld idle ticks, %lld kernel ticks, %lld user ticks\n", idle_ticks, kernel_ticks,
          user_ticks);
 }
+
+/* mycode: Sleep by timer */
+/* write as how semaphore writen */
+void thread_sleep(struct thread* t,int64_t start,int64_t ticks)
+{
+  /* set the sleep config */
+  t->sleep_start=start;
+  t->sleep_ticks=ticks;
+  /* check to sleep */
+  while(timer_elapsed(t->sleep_start)<t->sleep_ticks){
+    list_push_back(&sleep_list,&t->elem);
+    thread_block();
+  }
+}
+
+
+/* mycode: Wakeup the sleeping thread, which 
+   sleep in the sleep_list */
+void thread_wakeup(void)
+{
+  struct list_elem* e;
+  for(e=list_begin(&sleep_list);e!=list_end(&sleep_list);)
+  {
+    struct thread* t=list_entry(e,struct thread,elem);
+    struct list_elem* next=list_next(e);
+    if(timer_elapsed(t->sleep_start)>=t->sleep_ticks){
+      list_remove(e);
+      thread_unblock(t);
+    }
+    e=next;
+  }
+}
+
+
+
 
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,

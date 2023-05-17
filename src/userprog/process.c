@@ -54,6 +54,7 @@ void userprog_init(void) {
   init_fdt(&t->pcb->fd_table);
   init_cpt(&t->pcb->cp_table);
   t->pcb->exit_return=-1;
+  t->pcb->exe_file=NULL;
 }
 
 /* the optimize way is bitmap */
@@ -227,8 +228,6 @@ pid_t process_execute(const char* file_name) {
   size_t name_len;
 
   struct file* file_check=NULL;
-  struct dir* dir=dir_open_root();
-  struct inode* inode=NULL;
   struct thread* t=thread_current();
 
   fn_copy=palloc_get_page(0);
@@ -470,11 +469,13 @@ void process_exit(void) {
     child_return_cpt(&cur->father->cp_table,cur->pcb,cur->pcb->exit_return);
   }
 
-  file=file_open(cur->pcb->process_name);
-  if(file){
-    file_allow_write(file);
-    file_close(file);
+  if(cur->pcb->exe_file){
+    file_close(cur->pcb->exe_file);
   }
+
+  destory_fdt(&cur->pcb->fd_table);
+  destory_cpt(&cur->pcb->cp_table);
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -501,7 +502,6 @@ void process_exit(void) {
   free(pcb_to_free);
 
   sema_up(&thread_current()->father->sema);
-  destory_fdt(&pcb_to_free->fd_table);
   thread_exit();
 }
 
@@ -612,6 +612,9 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
     goto done;
   }
 
+  t->pcb->exe_file=file;
+  file_deny_write(t->pcb->exe_file);
+
 
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
@@ -682,7 +685,6 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
 
 done:
   /* We arrive here whether the load is successful or not. */
-  file_close(file);
   return success;
 }
 

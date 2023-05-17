@@ -22,9 +22,6 @@ struct file* file_open(struct inode* inode) {
     file->inode = inode;
     file->pos = 0;
     file->deny_write = false;
-    if(inode_open_cnt(inode)>1){
-      file_deny_write(file);
-    }
     return file;
   } else {
     inode_close(inode);
