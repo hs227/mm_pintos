@@ -103,10 +103,6 @@ struct thread {
   
 #endif
 
-  int64_t sleep_start;
-  int64_t sleep_ticks;
-  
-
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
 };
@@ -121,8 +117,6 @@ enum sched_policy {
 };
 #define SCHED_DEFAULT SCHED_FIFO
 
-
-
 /* Determines which scheduling policy the kernel should use.
  * Controller by the kernel command-line options
  *  "-sched-default", "-sched-fair", "-sched-mlfqs", "-sched-fifo"
@@ -134,12 +128,6 @@ void thread_start(void);
 
 void thread_tick(void);
 void thread_print_stats(void);
-
-/* mycode start: */
-void thread_sleep(struct thread*,int64_t,int64_t);
-void thread_wakeup(void);
-/* mycode end*/
-
 
 typedef void thread_func(void* aux);
 tid_t thread_create(const char* name, int priority, thread_func*, void*);

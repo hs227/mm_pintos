@@ -72,8 +72,7 @@ perl -I../.. ../../tests/userprog/exec-bound-2.ck tests/userprog/exec-bound-2 te
 pass tests/userprog/exec-bound-2
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/exec-bound-3 -a exec-bound-3 -- -q   -f run exec-bound-3 < /dev/null 2> tests/userprog/exec-bound-3.errors > tests/userprog/exec-bound-3.output
 perl -I../.. ../../tests/userprog/exec-bound-3.ck tests/userprog/exec-bound-3 tests/userprog/exec-bound-3.result
-FAIL tests/userprog/exec-bound-3
-run: should have killed process: FAILED
+pass tests/userprog/exec-bound-3
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/exec-missing -a exec-missing -- -q   -f run exec-missing < /dev/null 2> tests/userprog/exec-missing.errors > tests/userprog/exec-missing.output
 perl -I../.. ../../tests/userprog/exec-missing.ck tests/userprog/exec-missing tests/userprog/exec-missing.result
 pass tests/userprog/exec-missing
@@ -184,38 +183,14 @@ perl -I../.. ../../tests/userprog/multi-recurse.ck tests/userprog/multi-recurse 
 pass tests/userprog/multi-recurse
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/rox-simple -a rox-simple -- -q   -f run rox-simple < /dev/null 2> tests/userprog/rox-simple.errors > tests/userprog/rox-simple.output
 perl -I../.. ../../tests/userprog/rox-simple.ck tests/userprog/rox-simple tests/userprog/rox-simple.result
-pass tests/userprog/rox-simple
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/rox-child -a rox-child -p tests/userprog/child-rox -a child-rox -- -q   -f run rox-child < /dev/null 2> tests/userprog/rox-child.errors > tests/userprog/rox-child.output
-perl -I../.. ../../tests/userprog/rox-child.ck tests/userprog/rox-child tests/userprog/rox-child.result
-pass tests/userprog/rox-child
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/rox-multichild -a rox-multichild -p tests/userprog/child-rox -a child-rox -- -q   -f run rox-multichild < /dev/null 2> tests/userprog/rox-multichild.errors > tests/userprog/rox-multichild.output
-perl -I../.. ../../tests/userprog/rox-multichild.ck tests/userprog/rox-multichild tests/userprog/rox-multichild.result
-pass tests/userprog/rox-multichild
+FAIL tests/userprog/rox-simple
+run: try to write "rox-simple": FAILED
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/sc-bad-arg -a sc-bad-arg -- -q   -f run sc-bad-arg < /dev/null 2> tests/userprog/sc-bad-arg.errors > tests/userprog/sc-bad-arg.output
 perl -I../.. ../../tests/userprog/sc-bad-arg.ck tests/userprog/sc-bad-arg tests/userprog/sc-bad-arg.result
 pass tests/userprog/sc-bad-arg
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/sc-bad-sp -a sc-bad-sp -- -q   -f run sc-bad-sp < /dev/null 2> tests/userprog/sc-bad-sp.errors > tests/userprog/sc-bad-sp.output
 perl -I../.. ../../tests/userprog/sc-bad-sp.ck tests/userprog/sc-bad-sp tests/userprog/sc-bad-sp.result
-FAIL tests/userprog/sc-bad-sp
-Kernel panic in run: PANIC at ../../userprog/exception.c:97 in kill(): Kernel bug - unexpected interrupt in kernel
-Call stack: 0xc002a95a 0xc002ef8b 0xc002f0a9 0xc002218a 0xc00223e0 0xc002f1b1 0xc002218a 0xc00223e0 0x80480a1 0x80480dd 0x8048951
-Translation of call stack:
-In kernel.o:
-0xc002a95a: debug_panic (/home/vagrant/mycode/group/group0/src/lib/kernel/debug.c:35)
-0xc002ef8b: kill (/home/vagrant/mycode/group/group0/src/userprog/exception.c:102)
-0xc002f0a9: page_fault (/home/vagrant/mycode/group/group0/src/userprog/exception.c:152)
-0xc002218a: intr_handler (/home/vagrant/mycode/group/group0/src/threads/interrupt.c:339)
-0xc00223e0: intr_entry (threads/intr-stubs.S:38)
-0xc002f1b1: syscall_handler (/home/vagrant/mycode/group/group0/src/userprog/syscall.c:77)
-0xc002218a: intr_handler (/home/vagrant/mycode/group/group0/src/threads/interrupt.c:339)
-0xc00223e0: intr_entry (threads/intr-stubs.S:38)
-In tests/userprog/sc-bad-sp:
-0x080480a1: test_main (/home/vagrant/mycode/group/group0/src/tests/userprog/sc-bad-sp.c:17)
-0x080480dd: main (/home/vagrant/mycode/group/group0/src/tests/main.c:14)
-0x08048951: _start (/home/vagrant/mycode/group/group0/src/lib/user/entry.c:7)
-Translations of user virtual addresses above are based on a guess at
-the binary to use.  If this guess is incorrect, then those
-translations will be misleading.
+pass tests/userprog/sc-bad-sp
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/sc-boundary-2 -a sc-boundary-2 -- -q   -f run sc-boundary-2 < /dev/null 2> tests/userprog/sc-boundary-2.errors > tests/userprog/sc-boundary-2.output
 perl -I../.. ../../tests/userprog/sc-boundary-2.ck tests/userprog/sc-boundary-2 tests/userprog/sc-boundary-2.result
 pass tests/userprog/sc-boundary-2
@@ -230,53 +205,10 @@ perl -I../.. ../../tests/userprog/wait-bad-pid.ck tests/userprog/wait-bad-pid te
 pass tests/userprog/wait-bad-pid
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/wait-killed -a wait-killed -p tests/userprog/child-bad -a child-bad -- -q   -f run wait-killed < /dev/null 2> tests/userprog/wait-killed.errors > tests/userprog/wait-killed.output
 perl -I../.. ../../tests/userprog/wait-killed.ck tests/userprog/wait-killed tests/userprog/wait-killed.result
-FAIL tests/userprog/wait-killed
-Kernel panic in run: PANIC at ../../userprog/exception.c:97 in kill(): Kernel bug - unexpected interrupt in kernel
-Call stack: 0xc002a95a 0xc002ef8b 0xc002f0a9 0xc002218a 0xc00223e0 0xc002f1b1 0xc002218a 0xc00223e0 0x80480a1 0x80480dd 0x8048951
-Translation of call stack:
-In kernel.o:
-0xc002a95a: debug_panic (/home/vagrant/mycode/group/group0/src/lib/kernel/debug.c:35)
-0xc002ef8b: kill (/home/vagrant/mycode/group/group0/src/userprog/exception.c:102)
-0xc002f0a9: page_fault (/home/vagrant/mycode/group/group0/src/userprog/exception.c:152)
-0xc002218a: intr_handler (/home/vagrant/mycode/group/group0/src/threads/interrupt.c:339)
-0xc00223e0: intr_entry (threads/intr-stubs.S:38)
-0xc002f1b1: syscall_handler (/home/vagrant/mycode/group/group0/src/userprog/syscall.c:77)
-0xc002218a: intr_handler (/home/vagrant/mycode/group/group0/src/threads/interrupt.c:339)
-0xc00223e0: intr_entry (threads/intr-stubs.S:38)
-In tests/userprog/wait-killed:
-0x080480a1: test_main (/home/vagrant/mycode/group/group0/src/tests/userprog/wait-killed.c:7)
-0x080480dd: main (/home/vagrant/mycode/group/group0/src/tests/main.c:8)
-0x08048951: _start (/home/vagrant/mycode/group/group0/src/lib/user/entry.c:6)
-Translations of user virtual addresses above are based on a guess at
-the binary to use.  If this guess is incorrect, then those
-translations will be misleading.
+pass tests/userprog/wait-killed
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/wait-simple -a wait-simple -p tests/userprog/child-simple -a child-simple -- -q   -f run wait-simple < /dev/null 2> tests/userprog/wait-simple.errors > tests/userprog/wait-simple.output
 perl -I../.. ../../tests/userprog/wait-simple.ck tests/userprog/wait-simple tests/userprog/wait-simple.result
 pass tests/userprog/wait-simple
 pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/wait-twice -a wait-twice -p tests/userprog/child-simple -a child-simple -- -q   -f run wait-twice < /dev/null 2> tests/userprog/wait-twice.errors > tests/userprog/wait-twice.output
 perl -I../.. ../../tests/userprog/wait-twice.ck tests/userprog/wait-twice tests/userprog/wait-twice.result
 pass tests/userprog/wait-twice
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/floating-point -a floating-point -- -q   -f run floating-point < /dev/null 2> tests/userprog/floating-point.errors > tests/userprog/floating-point.output
-perl -I../.. ../../tests/userprog/floating-point.ck tests/userprog/floating-point tests/userprog/floating-point.result
-pass tests/userprog/floating-point
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/fp-asm -a fp-asm -p tests/userprog/fp-asm-helper -a fp-asm-helper -- -q   -f run fp-asm < /dev/null 2> tests/userprog/fp-asm.errors > tests/userprog/fp-asm.output
-perl -I../.. ../../tests/userprog/fp-asm.ck tests/userprog/fp-asm tests/userprog/fp-asm.result
-pass tests/userprog/fp-asm
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/fp-init -a fp-init -- -q   -f run fp-init < /dev/null 2> tests/userprog/fp-init.errors > tests/userprog/fp-init.output
-perl -I../.. ../../tests/userprog/fp-init.ck tests/userprog/fp-init tests/userprog/fp-init.result
-pass tests/userprog/fp-init
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/fp-kernel-e -a fp-kernel-e -- -q   -f run fp-kernel-e < /dev/null 2> tests/userprog/fp-kernel-e.errors > tests/userprog/fp-kernel-e.output
-perl -I../.. ../../tests/userprog/fp-kernel-e.ck tests/userprog/fp-kernel-e tests/userprog/fp-kernel-e.result
-pass tests/userprog/fp-kernel-e
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/fp-simul -a fp-simul -p tests/userprog/compute-e -a compute-e -- -q   -f run fp-simul < /dev/null 2> tests/userprog/fp-simul.errors > tests/userprog/fp-simul.output
-perl -I../.. ../../tests/userprog/fp-simul.ck tests/userprog/fp-simul tests/userprog/fp-simul.result
-pass tests/userprog/fp-simul
-pintos -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/fp-syscall -a fp-syscall -- -q   -f run fp-syscall < /dev/null 2> tests/userprog/fp-syscall.errors > tests/userprog/fp-syscall.output
-perl -I../.. ../../tests/userprog/fp-syscall.ck tests/userprog/fp-syscall tests/userprog/fp-syscall.result
-pass tests/userprog/fp-syscall
-pintos -v -k -T 60 --qemu  --filesys-size=2  -- -q   -f rukt fp-kasm < /dev/null 2> tests/userprog/kernel/fp-kasm.errors > tests/userprog/kernel/fp-kasm.output
-perl -I../.. ../../tests/userprog/kernel/fp-kasm.ck tests/userprog/kernel/fp-kasm tests/userprog/kernel/fp-kasm.result
-pass tests/userprog/kernel/fp-kasm
-pintos -v -k -T 60 --qemu  --filesys-size=2  -- -q   -f rukt fp-kinit < /dev/null 2> tests/userprog/kernel/fp-kinit.errors > tests/userprog/kernel/fp-kinit.output
-perl -I../.. ../../tests/userprog/kernel/fp-kinit.ck tests/userprog/kernel/fp-kinit tests/userprog/kernel/fp-kinit.result
-pass tests/userprog/kernel/fp-kinit

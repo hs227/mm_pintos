@@ -68,7 +68,7 @@ struct process {
   struct child_proc_table cp_table;
   int exit_return;
 
-  struct file* exe_file;
+
 };
 
 void userprog_init(void);
