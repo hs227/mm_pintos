@@ -65,7 +65,7 @@ void sema_down(struct semaphore* sema) {
   
   old_level = intr_disable();
   while (sema->value == 0) {
-    list_push_back(&sema->waiters, &thread_current()->elem);
+    list_insert_ordered(&sema->waiters,&thread_current()->elem,thread_high_prio,NULL);
     thread_block();
   }
   sema->value--;
@@ -106,8 +106,10 @@ void sema_up(struct semaphore* sema) {
   ASSERT(sema != NULL);
 
   old_level = intr_disable();
-  if (!list_empty(&sema->waiters))
+  if (!list_empty(&sema->waiters)){
     thread_unblock(list_entry(list_pop_front(&sema->waiters), struct thread, elem));
+    
+  }
   sema->value++;
   intr_set_level(old_level);
 }
@@ -167,6 +169,51 @@ void lock_init(struct lock* lock) {
   sema_init(&lock->semaphore, 1);
 }
 
+/* mycode: */
+static int get_thread_real_prio(struct thread* t)
+{
+  if(t->priority < t->donate_prio)
+    return t->donate_prio;
+  else
+    return t->priority;
+}
+
+
+/* mycode: if i should wait, i need to donate */
+static void lock_set_donate_prio(struct lock* lock)
+{
+  ASSERT(lock!=NULL);
+  ASSERT(!intr_context());
+  ASSERT(!lock_held_by_current_thread(lock));
+  struct thread* t=thread_current();
+
+  /* lock is held,need to wait */
+  if(lock->holder){
+    if(thread_get_priority()>get_thread_real_prio(lock->holder)){
+      lock->holder->donate_prio=thread_get_priority();
+    }
+  }
+}
+
+/* mycode: if i wakeup and get lock, i might donated */
+static void lock_get_donate_prio(struct lock* lock)
+{
+  ASSERT(lock!=NULL);
+  ASSERT(!intr_context());
+  ASSERT(!lock_held_by_current_thread(lock));
+  struct thread* t=thread_current();
+
+  int donate_prio=-1;
+  if(!list_empty(&lock->semaphore.waiters)){
+    struct list_elem* e=list_front(&lock->semaphore.waiters);
+    struct thread* front=list_entry(e,struct thread,elem);
+    donate_prio=get_thread_real_prio(front);
+  }
+  if(donate_prio>get_thread_real_prio(t)) 
+    t->donate_prio=donate_prio;
+}
+
+
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
    thread.
@@ -180,11 +227,15 @@ void lock_acquire(struct lock* lock) {
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
+  lock_set_donate_prio(lock);
   sema_down(&lock->semaphore);
+  lock_get_donate_prio(lock);
+
   lock->holder = thread_current();
 }
 
-/* Tries to acquires LOCK and returns true if successful or false
+/*
+ * Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.
 
@@ -210,7 +261,9 @@ bool lock_try_acquire(struct lock* lock) {
 void lock_release(struct lock* lock) {
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
-
+  
+  thread_current()->donate_prio=-1;
+  
   lock->holder = NULL;
   sema_up(&lock->semaphore);
 }

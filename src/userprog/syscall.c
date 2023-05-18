@@ -13,7 +13,7 @@
 #include "filesys/filesys.h"
 #include "devices/input.h"
 #include "lib/float.h"
-
+#include "threads/synch.h"
 
 static void syscall_handler(struct intr_frame*);
 
@@ -32,6 +32,9 @@ static void syscall_tell(struct intr_frame*,uint32_t*);
 static void syscall_close(struct intr_frame*,uint32_t*);
 static void syscall_practice(struct intr_frame*,uint32_t*);
 static void syscall_compute_e(struct intr_frame*,uint32_t*);
+static void syscall_lock_init(struct intr_frame*,uint32_t*);
+static void syscall_lock_acquire(struct intr_frame*,uint32_t*);
+static void syscall_lock_release(struct intr_frame*,uint32_t*);
 
 
 static bool valid_addr(void* addr)
@@ -111,6 +114,9 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_TELL:
     case SYS_CLOSE:
     case SYS_COMPUTE_E:
+    case SYS_LOCK_INIT:
+    case SYS_LOCK_ACQUIRE:
+    case SYS_LOCK_RELEASE:
       if(!verify_ptr(&args[1],sizeof(uint32_t))){
         printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
         process_exit();
@@ -134,6 +140,14 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_READ:
     case SYS_WRITE:
       if(!verify_ptr(args[2],args[3]*sizeof(char))){
+        args[0]=SYS_EXIT;
+        args[1]=-1;
+      }
+      break;
+    case SYS_LOCK_INIT:
+    case SYS_LOCK_ACQUIRE:
+    case SYS_LOCK_RELEASE:
+      if(!verify_ptr(args[1],sizeof(struct lock))){
         args[0]=SYS_EXIT;
         args[1]=-1;
       }
@@ -188,6 +202,15 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       break;
     case SYS_COMPUTE_E: /* Computes e */
       syscall_compute_e(f,args);
+      break;
+    case SYS_LOCK_INIT: /* Initializes a lock */
+      syscall_lock_init(f,args);
+      break;
+    case SYS_LOCK_ACQUIRE: /* Acquires a lock */
+      syscall_lock_acquire(f,args);
+      break;
+    case SYS_LOCK_RELEASE: /* Releases a lock */
+      syscall_lock_release(f,args);
       break;
     default:
       printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
@@ -393,7 +416,26 @@ static void syscall_compute_e(struct intr_frame* f,uint32_t* args)
   f->eax=sys_sum_to_e(n);
 }
 
+/* SYS_LOCK_INIT */
+static void syscall_lock_init(struct intr_frame* f,uint32_t* args)
+{
+  struct lock* lock=args[1];
+  lock_init(lock);
+}
 
+/* SYS_LOCK_ACQUIRE */
+static void syscall_lock_acquire(struct intr_frame* f,uint32_t* args)
+{
+  struct lock* lock=args[1];
+  lock_acquire(lock);
+}
+
+/* SYS_LOCK_RELEASE */
+static void syscall_lock_release(struct intr_frame* f,uint32_t* args)
+{
+  struct lock* lock=args[1];
+  lock_release(lock);
+}
 
 
 
