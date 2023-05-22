@@ -16,3 +16,9 @@ pass tests/threads/alarm-multiple
 pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt alarm-priority < /dev/null 2> tests/threads/alarm-priority.errors > tests/threads/alarm-priority.output
 perl -I../.. ../../tests/threads/alarm-priority.ck tests/threads/alarm-priority tests/threads/alarm-priority.result
 pass tests/threads/alarm-priority
+pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-donate-one < /dev/null 2> tests/threads/priority-donate-one.errors > tests/threads/priority-donate-one.output
+perl -I../.. ../../tests/threads/priority-donate-one.ck tests/threads/priority-donate-one tests/threads/priority-donate-one.result
+pass tests/threads/priority-donate-one
+pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-preempt < /dev/null 2> tests/threads/priority-preempt.errors > tests/threads/priority-preempt.output
+perl -I../.. ../../tests/threads/priority-preempt.ck tests/threads/priority-preempt tests/threads/priority-preempt.result
+pass tests/threads/priority-preempt

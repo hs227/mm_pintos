@@ -57,3 +57,7 @@ static void acquire2_thread_func(void* lock_) {
   lock_release(lock);
   msg("acquire2: done");
 }
+
+
+
+

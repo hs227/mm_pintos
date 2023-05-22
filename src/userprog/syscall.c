@@ -32,9 +32,16 @@ static void syscall_tell(struct intr_frame*,uint32_t*);
 static void syscall_close(struct intr_frame*,uint32_t*);
 static void syscall_practice(struct intr_frame*,uint32_t*);
 static void syscall_compute_e(struct intr_frame*,uint32_t*);
+static void syscall_pt_create(struct intr_frame*,uint32_t*);
+static void syscall_pt_exit(struct intr_frame*,uint32_t*);
+static void syscall_pt_join(struct intr_frame*,uint32_t*);
 static void syscall_lock_init(struct intr_frame*,uint32_t*);
 static void syscall_lock_acquire(struct intr_frame*,uint32_t*);
 static void syscall_lock_release(struct intr_frame*,uint32_t*);
+static void syscall_sema_init(struct intr_frame*,uint32_t*);
+static void syscall_sema_down(struct intr_frame*,uint32_t*);
+static void syscall_sema_up(struct intr_frame*,uint32_t*);
+static void syscall_get_tid(struct intr_frame*,uint32_t*);
 
 
 static bool valid_addr(void* addr)
@@ -95,6 +102,11 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
   }
   /* args[i] */
   switch(args[0]){
+    case SYS_PT_CREATE:
+      if(!verify_ptr(&args[4],sizeof(unsigned))){
+        printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
+        process_exit();
+      }
     case SYS_READ:
     case SYS_WRITE:
       if(!verify_ptr(&args[3],sizeof(uint32_t))){
@@ -117,6 +129,9 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_LOCK_INIT:
     case SYS_LOCK_ACQUIRE:
     case SYS_LOCK_RELEASE:
+    case SYS_SEMA_INIT:
+    case SYS_SEMA_DOWN:
+    case SYS_SEMA_UP:
       if(!verify_ptr(&args[1],sizeof(uint32_t))){
         printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
         process_exit();
@@ -132,6 +147,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_CREATE:
     case SYS_REMOVE:
     case SYS_OPEN:
+    case SYS_PT_CREATE:
       if(!verify_str((char*)args[1])){
         args[0]=SYS_EXIT;
         args[1]=-1;
@@ -148,6 +164,14 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_LOCK_ACQUIRE:
     case SYS_LOCK_RELEASE:
       if(!verify_ptr(args[1],sizeof(struct lock))){
+        args[0]=SYS_EXIT;
+        args[1]=-1;
+      }
+      break;
+    case SYS_SEMA_INIT:
+    case SYS_SEMA_DOWN:
+    case SYS_SEMA_UP:
+      if(!verify_ptr(args[1],sizeof(struct semaphore))){
         args[0]=SYS_EXIT;
         args[1]=-1;
       }
@@ -203,6 +227,15 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_COMPUTE_E: /* Computes e */
       syscall_compute_e(f,args);
       break;
+    case SYS_PT_CREATE: /* Creates a new thread */
+      syscall_pt_create(f,args);
+      break;
+    case SYS_PT_EXIT: /* Exits the current thread */
+      syscall_pt_exit(f,args);
+      break;
+    case SYS_PT_JOIN: /* Waits for thread to finish */
+      syscall_pt_join(f,args);
+      break;
     case SYS_LOCK_INIT: /* Initializes a lock */
       syscall_lock_init(f,args);
       break;
@@ -211,6 +244,18 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       break;
     case SYS_LOCK_RELEASE: /* Releases a lock */
       syscall_lock_release(f,args);
+      break;
+    case SYS_SEMA_INIT: /* Initializes a semaphore */
+      syscall_sema_init(f,args);
+      break;
+    case SYS_SEMA_DOWN: /* Downs a semaphore */
+      syscall_sema_down(f,args);
+      break;
+    case SYS_SEMA_UP: /* Ups a semaphore */
+      syscall_sema_up(f,args);
+      break;
+    case SYS_GET_TID: /* Gets TID of the current thread */
+      syscall_get_tid(f,args);
       break;
     default:
       printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
@@ -416,6 +461,30 @@ static void syscall_compute_e(struct intr_frame* f,uint32_t* args)
   f->eax=sys_sum_to_e(n);
 }
 
+/* SYS_PT_CREATE */
+static void syscall_pt_create(struct intr_frame* f,uint32_t* args)
+{
+  const char* name=args[1];
+  int priority=args[2];
+  thread_func* function=args[3];
+  void* aux=args[4];
+  f->eax=thread_create(name,priority,function,aux);
+}
+
+/* SYS_PT_EXIT */
+static void syscall_pt_exit(struct intr_frame* f,uint32_t* args)
+{
+  thread_exit();
+}
+
+
+/* SYS_PT_JOIN */
+static void syscall_pt_join(struct intr_frame* f,uint32_t* args)
+{
+  ASSERT(!"<syscall_pt_join> not implement");
+}
+
+
 /* SYS_LOCK_INIT */
 static void syscall_lock_init(struct intr_frame* f,uint32_t* args)
 {
@@ -436,6 +505,46 @@ static void syscall_lock_release(struct intr_frame* f,uint32_t* args)
   struct lock* lock=args[1];
   lock_release(lock);
 }
+
+/* SYS_SEMA_INIT */
+static void syscall_sema_init(struct intr_frame* f,uint32_t* args)
+{
+  struct semaphore* sema=args[1];
+  int val=args[2];
+  sema_init(sema,val);
+}
+
+/* SYS_SEMA_DOWN */
+static void syscall_sema_down(struct intr_frame* f,uint32_t* args)
+{
+  struct semaphore* sema=args[1];
+  sema_down(sema);
+}
+
+/* SYS_SEMA_UP */
+static void syscall_sema_up(struct intr_frame* f,uint32_t* args)
+{
+  struct semaphore* sema=args[1];
+  sema_up(sema);
+}
+
+/* SYS_GET_TID */
+static void syscall_get_tid(struct intr_frame* f,uint32_t* args)
+{
+  f->eax=thread_current()->tid;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

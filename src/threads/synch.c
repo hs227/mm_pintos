@@ -169,50 +169,64 @@ void lock_init(struct lock* lock) {
   sema_init(&lock->semaphore, 1);
 }
 
-/* mycode: */
-static int get_thread_real_prio(struct thread* t)
-{
-  if(t->priority < t->donate_prio)
-    return t->donate_prio;
-  else
-    return t->priority;
-}
 
 
 /* mycode: if i should wait, i need to donate */
-static void lock_set_donate_prio(struct lock* lock)
-{
-  ASSERT(lock!=NULL);
-  ASSERT(!intr_context());
-  ASSERT(!lock_held_by_current_thread(lock));
-  struct thread* t=thread_current();
-
-  /* lock is held,need to wait */
-  if(lock->holder){
-    if(thread_get_priority()>get_thread_real_prio(lock->holder)){
-      lock->holder->donate_prio=thread_get_priority();
-    }
-  }
-}
+//static void lock_set_donate_prio(struct lock* lock)
+//{
+//  ASSERT(lock!=NULL);
+//  ASSERT(!intr_context());
+//  ASSERT(!lock_held_by_current_thread(lock));
+//  struct thread* t=thread_current();
+//
+//  /* lock is held,need to wait */
+//  if(lock->holder){
+//    if(thread_get_priority()>get_thread_real_prio(lock->holder)){
+//      lock->holder->donate_prio=thread_get_priority();
+//    }
+//  }
+//}
 
 /* mycode: if i wakeup and get lock, i might donated */
-static void lock_get_donate_prio(struct lock* lock)
+//static void lock_get_donate_prio(struct lock* lock)
+//{
+//  ASSERT(lock!=NULL);
+//  ASSERT(!intr_context());
+//  ASSERT(!lock_held_by_current_thread(lock));
+//  struct thread* t=thread_current();
+//
+//  int donate_prio=-1;
+//  if(!list_empty(&lock->semaphore.waiters)){
+//    struct list_elem* e=list_front(&lock->semaphore.waiters);
+//    struct thread* front=list_entry(e,struct thread,elem);
+//    donate_prio=get_thread_real_prio(front);
+//  }
+//  if(donate_prio>get_thread_real_prio(t)) 
+//    t->donate_prio=donate_prio;
+//}
+
+/* mycode: */
+static bool waiting_high_prio(const struct list_elem* a,const struct list_elem* b,void* aux)
 {
-  ASSERT(lock!=NULL);
-  ASSERT(!intr_context());
-  ASSERT(!lock_held_by_current_thread(lock));
-  struct thread* t=thread_current();
+  struct lock* a_lock=list_entry(a,struct lock,elem);
+  struct lock* b_lock=list_entry(b,struct lock,elem);
+  int a_priority=-1;
+  int b_priority=-1;
 
-  int donate_prio=-1;
-  if(!list_empty(&lock->semaphore.waiters)){
-    struct list_elem* e=list_front(&lock->semaphore.waiters);
-    struct thread* front=list_entry(e,struct thread,elem);
-    donate_prio=get_thread_real_prio(front);
+  if(!list_empty(&a_lock->semaphore.waiters)){
+    struct list_elem* e=list_front(&a_lock->semaphore.waiters);
+    struct thread* t=list_entry(e,struct thread,elem);
+    a_priority=thread_special_get_priority(t);
   }
-  if(donate_prio>get_thread_real_prio(t)) 
-    t->donate_prio=donate_prio;
-}
 
+  if(!list_empty(&b_lock->semaphore.waiters)){
+    struct list_elem* e=list_front(&b_lock->semaphore.waiters);
+    struct thread* t=list_entry(e,struct thread,elem);
+    b_priority=thread_special_get_priority(t);
+  }
+
+  return a_priority>=b_priority;
+}
 
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
@@ -227,11 +241,14 @@ void lock_acquire(struct lock* lock) {
   ASSERT(!intr_context());
   ASSERT(!lock_held_by_current_thread(lock));
 
-  lock_set_donate_prio(lock);
   sema_down(&lock->semaphore);
-  lock_get_donate_prio(lock);
+  struct thread* t=thread_current();
+  int debug_num=list_size(&t->holding_lock_list);
 
-  lock->holder = thread_current();
+  lock->holder = t;
+  list_insert_ordered(
+      &t->holding_lock_list,&lock->elem,waiting_high_prio,NULL);
+  debug_num=list_size(&t->holding_lock_list);
 }
 
 /*
@@ -246,10 +263,15 @@ bool lock_try_acquire(struct lock* lock) {
 
   ASSERT(lock != NULL);
   ASSERT(!lock_held_by_current_thread(lock));
+  
+  struct thread* t=thread_current();
 
   success = sema_try_down(&lock->semaphore);
-  if (success)
-    lock->holder = thread_current();
+  if (success){
+    lock->holder = t;
+    list_insert_ordered(
+        &t->holding_lock_list,&lock->elem,waiting_high_prio,NULL);
+  }
   return success;
 }
 
@@ -262,10 +284,12 @@ void lock_release(struct lock* lock) {
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
   
-  thread_current()->donate_prio=-1;
-  
+  list_remove(&lock->elem);
   lock->holder = NULL;
   sema_up(&lock->semaphore);
+  if(intr_get_level()==INTR_ON){
+    thread_yield();
+  }
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -334,12 +358,6 @@ void rw_lock_release(struct rw_lock* rw_lock, bool reader) {
   // Release guard lock
   lock_release(&rw_lock->lock);
 }
-
-/* One semaphore in a list. */
-struct semaphore_elem {
-  struct list_elem elem;      /* List element. */
-  struct semaphore semaphore; /* This semaphore. */
-};
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating

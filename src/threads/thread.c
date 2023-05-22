@@ -279,26 +279,9 @@ bool thread_high_prio(const struct list_elem* a,const struct list_elem* b,void* 
 {
   struct thread* a_t=list_entry(a,struct thread,elem);
   struct thread* b_t=list_entry(b,struct thread,elem);
-  return a_t->priority>=b_t->priority;
+  return thread_special_get_priority(a_t)>=
+    thread_special_get_priority(b_t);
 }
-
-/* mycode: */
-bool thread_is_highest_prio(void)
-{
-  struct list_elem* e;
-  if(!list_empty(&prio_ready_list)){
-    e=list_front(e);
-    struct thread* t=list_entry(e,struct thread,elem);
-    if(thread_get_priority()>t->priority&&
-        thread_get_priority()>t->donate_prio){
-      return true;
-    }else{
-      return false;
-    }
-  }
-  return true;
-}
-
 
 /* Places a thread on the ready structure appropriate for the
    current active scheduling policy.
@@ -337,7 +320,9 @@ void thread_unblock(struct thread* t) {
 }
 
 /* Returns the name of the running thread. */
-const char* thread_name(void) { return thread_current()->name; }
+const char* thread_name(void) { 
+  return thread_current()->name; 
+}
 
 /* Returns the running thread.
    This is running_thread() plus a couple of sanity checks.
@@ -357,7 +342,9 @@ struct thread* thread_current(void) {
 }
 
 /* Returns the running thread's tid. */
-tid_t thread_tid(void) { return thread_current()->tid; }
+tid_t thread_tid(void) { 
+  return thread_current()->tid; 
+}
 
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
@@ -405,20 +392,53 @@ void thread_foreach(thread_action_func* func, void* aux) {
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority) { 
+  int old_priority=thread_current()->priority;
   thread_current()->priority = new_priority; 
+  if(old_priority>new_priority)
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void) { 
-  struct thread* t=thread_current();
-  if(t->donate_prio > t->priority){
-    return t->donate_prio;
-  }
-  return t->priority;
+  return thread_special_get_priority(thread_current());
 }
 
+/* mycode: return specail thread`s priority the 
+   holding lock sorted by priority */
+int thread_special_get_priority(struct thread* t)
+{
+  int debug_num=list_size(&t->holding_lock_list);
+  if(list_empty(&t->holding_lock_list)){
+    return t->priority;
+  }
+  /* get the lock */
+  struct list_elem* lock_elem=list_front(&t->holding_lock_list);
+  struct lock* lock=list_entry(lock_elem,struct lock,elem);
+  if(list_empty(&lock->semaphore.waiters)){
+    return t->priority;
+  }
+  /* get the thread */
+  struct list_elem* thread_elem=
+    list_front(&lock->semaphore.waiters);
+  struct thread* thread=
+    list_entry(thread_elem,struct thread,elem);
+  /* get the priority */
+  int donate_priority=thread_special_get_priority(thread);
+  if(donate_priority>t->priority){
+    return donate_priority;
+  }
+  return t->priority;
+
+}
+
+
+
+
+
+
 /* Sets the current thread's nice value to NICE. */
-void thread_set_nice(int nice UNUSED) { /* Not yet implemented. */
+void thread_set_nice(int nice UNUSED) { 
+  /* Not yet implemented. */
 }
 
 /* Returns the current thread's nice value. */
@@ -496,7 +516,9 @@ struct thread* running_thread(void) {
 }
 
 /* Returns true if T appears to point to a valid thread. */
-static bool is_thread(struct thread* t) { return t != NULL && t->magic == THREAD_MAGIC; }
+static bool is_thread(struct thread* t) { 
+  return t != NULL && t->magic == THREAD_MAGIC; 
+}
 
 /* Does basic initialization of T as a blocked thread named
    NAME. */
@@ -514,7 +536,8 @@ static void init_thread(struct thread* t, const char* name, int priority) {
   t->priority = priority;
   t->pcb = NULL;
   t->father=!list_empty(&all_list)?thread_current()->pcb:NULL;
-  t->donate_prio=-1;
+   list_init(&t->holding_lock_list);
+  
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable();

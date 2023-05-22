@@ -103,10 +103,11 @@ struct thread {
   
 #endif
 
+  /* for sleeping */
   int64_t sleep_start;
   int64_t sleep_ticks;
  
-  int donate_prio;
+  struct list holding_lock_list;
 
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
@@ -141,7 +142,8 @@ void thread_sleep(struct thread*,int64_t,int64_t);
 void thread_wakeup(void);
 
 bool thread_high_prio(const struct list_elem*,const struct list_elem*,void*);
-bool thread_is_highest_prio(void);
+int thread_special_get_priority(struct thread*);
+
 /* mycode end*/
 
 
