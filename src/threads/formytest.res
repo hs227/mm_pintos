@@ -46,3 +46,15 @@ pass tests/threads/priority-donate-lower
 pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-fifo < /dev/null 2> tests/threads/priority-fifo.errors > tests/threads/priority-fifo.output
 perl -I../.. ../../tests/threads/priority-fifo.ck tests/threads/priority-fifo tests/threads/priority-fifo.result
 pass tests/threads/priority-fifo
+pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-donate-nest < /dev/null 2> tests/threads/priority-donate-nest.errors > tests/threads/priority-donate-nest.output
+perl -I../.. ../../tests/threads/priority-donate-nest.ck tests/threads/priority-donate-nest tests/threads/priority-donate-nest.result
+pass tests/threads/priority-donate-nest
+pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-donate-sema < /dev/null 2> tests/threads/priority-donate-sema.errors > tests/threads/priority-donate-sema.output
+perl -I../.. ../../tests/threads/priority-donate-sema.ck tests/threads/priority-donate-sema tests/threads/priority-donate-sema.result
+pass tests/threads/priority-donate-sema
+pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-donate-multiple < /dev/null 2> tests/threads/priority-donate-multiple.errors > tests/threads/priority-donate-multiple.output
+perl -I../.. ../../tests/threads/priority-donate-multiple.ck tests/threads/priority-donate-multiple tests/threads/priority-donate-multiple.result
+pass tests/threads/priority-donate-multiple
+pintos -v -k -T 60 --bochs  --filesys-size=2  -- -q  -sched=prio -f rtkt priority-donate-multiple2 < /dev/null 2> tests/threads/priority-donate-multiple2.errors > tests/threads/priority-donate-multiple2.output
+perl -I../.. ../../tests/threads/priority-donate-multiple2.ck tests/threads/priority-donate-multiple2 tests/threads/priority-donate-multiple2.result
+pass tests/threads/priority-donate-multiple2

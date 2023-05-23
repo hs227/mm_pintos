@@ -407,33 +407,41 @@ int thread_get_priority(void) {
    holding lock sorted by priority */
 int thread_special_get_priority(struct thread* t)
 {
-  int debug_num=list_size(&t->holding_lock_list);
   if(list_empty(&t->holding_lock_list)){
     return t->priority;
   }
   /* get the lock */
-  struct list_elem* lock_elem=list_front(&t->holding_lock_list);
-  struct lock* lock=list_entry(lock_elem,struct lock,elem);
-  if(list_empty(&lock->semaphore.waiters)){
-    return t->priority;
+  struct list_elem* lock_elem;
+  int max_priority=t->priority;
+  for(lock_elem=list_begin(&t->holding_lock_list);
+      lock_elem!=list_end(&t->holding_lock_list);
+      lock_elem=list_next(lock_elem))
+  {
+    struct lock* lock=
+      list_entry(lock_elem,struct lock,elem);
+    if(list_empty(&lock->semaphore.waiters)){
+      continue;
+    }
+    /* get the thread */
+    struct list_elem* thread_elem;
+    for(thread_elem=list_begin(&lock->semaphore.waiters);
+        thread_elem!=list_end(&lock->semaphore.waiters);
+        thread_elem=list_next(thread_elem))
+    {
+      struct thread* thread=
+        list_entry(thread_elem,struct thread,elem);
+      /* get the priority */
+      int donate_priority=thread_special_get_priority(thread);
+      if(donate_priority>max_priority){
+        max_priority=donate_priority;
+      }
+    }
   }
-  /* get the thread */
-  struct list_elem* thread_elem=
-    list_front(&lock->semaphore.waiters);
-  struct thread* thread=
-    list_entry(thread_elem,struct thread,elem);
-  /* get the priority */
-  int donate_priority=thread_special_get_priority(thread);
-  if(donate_priority>t->priority){
-    return donate_priority;
-  }
-  return t->priority;
 
+
+
+  return max_priority;
 }
-
-
-
-
 
 
 /* Sets the current thread's nice value to NICE. */

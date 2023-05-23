@@ -109,6 +109,7 @@ void sema_up(struct semaphore* sema) {
 
   old_level = intr_disable();
   if (!list_empty(&sema->waiters)){
+    list_sort(&sema->waiters,thread_high_prio,NULL);
     thread_unblock(list_entry(list_pop_front(&sema->waiters), struct thread, elem));
     
   }
@@ -219,18 +220,35 @@ static bool waiting_high_prio(const struct list_elem* a,const struct list_elem* 
   int b_priority=-1;
 
   if(!list_empty(&a_lock->semaphore.waiters)){
-    struct list_elem* e=list_front(&a_lock->semaphore.waiters);
-    struct thread* t=list_entry(e,struct thread,elem);
-    a_priority=thread_special_get_priority(t);
+    struct list_elem* e;
+    for(e=list_begin(&a_lock->semaphore.waiters);
+        e!=list_end(&a_lock->semaphore.waiters);
+        e=list_next(e))
+    {
+      struct thread* t=list_entry(e,struct thread,elem);
+      int prio=thread_special_get_priority(t);
+      if(prio>a_priority){
+        a_priority=prio;
+      }
+    }
   }
 
   if(!list_empty(&b_lock->semaphore.waiters)){
-    struct list_elem* e=list_front(&b_lock->semaphore.waiters);
-    struct thread* t=list_entry(e,struct thread,elem);
-    b_priority=thread_special_get_priority(t);
+    struct list_elem* e;
+    for(e=list_begin(&b_lock->semaphore.waiters);
+        e!=list_end(&b_lock->semaphore.waiters);
+        e=list_next(e))
+    {
+      struct thread* t=list_entry(e,struct thread,elem);
+      int prio=thread_special_get_priority(t);
+      if(prio>b_priority){
+        b_priority=prio;
+      }
+    }
+  
   }
 
-  return a_priority>=b_priority;
+  return a_priority>b_priority;
 }
 
 /* mycode: */
@@ -242,12 +260,20 @@ static bool waiting_cond_high_prio(const struct list_elem* a,const struct list_e
 
 
   if(!list_empty(&b_sema->semaphore.waiters)){
-    struct list_elem* e=list_front(&b_sema->semaphore.waiters);
-    struct thread* t=list_entry(e,struct thread,elem);
-    b_priority=thread_special_get_priority(t);
+    struct list_elem* e;
+    for(e=list_begin(&b_sema->semaphore.waiters);
+        e!=list_end(&b_sema->semaphore.waiters);
+        e=list_next(e))
+    {
+      struct thread* t=list_entry(e,struct thread,elem);
+      int prio=thread_special_get_priority(t);
+      if(prio>b_priority){
+        b_priority=prio;
+      }
+    }
   }
 
-  return a_priority>=b_priority;
+  return a_priority>b_priority;
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
