@@ -14,6 +14,12 @@ pintos-test priority-donate-one| tee -a formytest.res
 pintos-test priority-preempt   | tee -a formytest.res
 pintos-test priority-starve    | tee -a formytest.res
 pintos-test priority-starve-sema| tee -a formytest.res
+pintos-test priority-sema      | tee -a formytest.res
+pintos-test priority-condvar   | tee -a formytest.res
+pintos-test priority-change    | tee -a formytest.res
+pintos-test priority-donate-chain| tee -a formytest.res
+pintos-test priority-donate-lower| tee -a formytest.res
+pintos-test priority-fifo      | tee -a formytest.res
 
 
 

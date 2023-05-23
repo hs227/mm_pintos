@@ -279,7 +279,7 @@ bool thread_high_prio(const struct list_elem* a,const struct list_elem* b,void* 
 {
   struct thread* a_t=list_entry(a,struct thread,elem);
   struct thread* b_t=list_entry(b,struct thread,elem);
-  return thread_special_get_priority(a_t)>=
+  return thread_special_get_priority(a_t)>
     thread_special_get_priority(b_t);
 }
 
