@@ -50,6 +50,12 @@ int next_empty_child_cpt(struct child_proc_table* cp_table);
 int child_return_cpt(struct child_proc_table* cp_table,struct process* child,int res);
 int father_wait_cpt(struct child_proc_table* cp_table,struct process* father,pid_t id);
 
+struct exit_pthread_tid
+{
+  tid_t dead_tid;
+  struct list_elem elem;
+};
+
 
 /* The process control block for a given process. Since
    there can be multiple threads per process, we need a separate
@@ -60,16 +66,21 @@ struct process {
   /* Owned by process.c. */
   uint32_t* pagedir;          /* Page directory. */
   char process_name[16];      /* Name of the main thread */
-  struct thread* main_thread; /* Pointer to main thread */
+
+  struct list threads;
+
+  uint32_t next_thread_stack;
 
   struct semaphore sema;
 
   struct file_descriptor_table fd_table;
   struct child_proc_table cp_table;
   int exit_return;
+  struct list exit_threads;
 
   struct file* exe_file;
 };
+
 
 void userprog_init(void);
 

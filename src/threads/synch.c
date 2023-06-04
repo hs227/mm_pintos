@@ -48,6 +48,12 @@ void sema_init(struct semaphore* sema, unsigned value) {
   list_init(&sema->waiters);
 }
 
+bool sema_is_init(struct semaphore* sema)
+{
+  ASSERT(sema != NULL);
+  return list_is_init(&sema->waiters);
+}
+
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
    to become positive and then atomically decrements it.
 
@@ -175,6 +181,11 @@ void lock_init(struct lock* lock) {
   sema_init(&lock->semaphore, 1);
 }
 
+bool lock_is_init(struct lock* lock)
+{
+  ASSERT(lock!=NULL);
+  return sema_is_init(&lock->semaphore);
+}
 
 
 /* mycode: if i should wait, i need to donate */
@@ -480,3 +491,16 @@ void cond_broadcast(struct condition* cond, struct lock* lock) {
   while (!list_empty(&cond->waiters))
     cond_signal(cond, lock);
 }
+
+/* mycode: */
+void monitor_init(struct pthread_exit_monitor* monitor,int value)
+{
+  ASSERT(monitor!=NULL);
+  monitor->value=value;
+  sema_init(&monitor->sema,0);
+}
+
+
+
+
+

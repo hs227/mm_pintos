@@ -11,6 +11,7 @@ struct semaphore {
 };
 
 void sema_init(struct semaphore*, unsigned value);
+bool seam_is_init(struct semaphore*);
 void sema_down(struct semaphore*);
 bool sema_try_down(struct semaphore*);
 void sema_up(struct semaphore*);
@@ -23,6 +24,7 @@ struct lock {
 };
 
 void lock_init(struct lock*);
+bool lock_is_init(struct lock*);
 void lock_acquire(struct lock*);
 bool lock_try_acquire(struct lock*);
 void lock_release(struct lock*);
@@ -58,6 +60,15 @@ struct rw_lock {
 void rw_lock_init(struct rw_lock*);
 void rw_lock_acquire(struct rw_lock*, bool reader);
 void rw_lock_release(struct rw_lock*, bool reader);
+
+/* mycode: just for pthread_exit */
+struct pthread_exit_monitor
+{
+  int value;
+  struct semaphore sema; /* only wait the exiting main_thread */
+};
+
+
 
 /* Optimization barrier.
 

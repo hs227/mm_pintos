@@ -14,6 +14,8 @@
 #include "devices/input.h"
 #include "lib/float.h"
 #include "threads/synch.h"
+#include "threads/interrupt.h"
+
 
 static void syscall_handler(struct intr_frame*);
 
@@ -76,15 +78,17 @@ static bool verify_str(char* ptr)
 
 }
 
+static struct lock file_open_lock;
+
 void syscall_init(void) { 
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall"); 
+  
+  lock_init(&file_open_lock);
 }
 
 static void syscall_handler(struct intr_frame* f UNUSED) {
   uint32_t* args = ((uint32_t*)f->esp);
-  //struct thread* t=thread_current();
   uint8_t init_fpu[108];
-  bool i=valid_addr(args[1]+1);
   /*
    * The following print statement, if uncommented, will print out the syscall
    * number whenever a process enters a system call. You might find it useful
@@ -102,13 +106,9 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
   }
   /* args[i] */
   switch(args[0]){
-    case SYS_PT_CREATE:
-      if(!verify_ptr(&args[4],sizeof(unsigned))){
-        printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
-        process_exit();
-      }
     case SYS_READ:
     case SYS_WRITE:
+    case SYS_PT_CREATE:
       if(!verify_ptr(&args[3],sizeof(uint32_t))){
         printf("%s: exit(-1)\n",thread_current()->pcb->process_name);
         process_exit(); 
@@ -147,7 +147,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_CREATE:
     case SYS_REMOVE:
     case SYS_OPEN:
-    case SYS_PT_CREATE:
       if(!verify_str((char*)args[1])){
         args[0]=SYS_EXIT;
         args[1]=-1;
@@ -160,7 +159,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         args[1]=-1;
       }
       break;
-    case SYS_LOCK_INIT:
     case SYS_LOCK_ACQUIRE:
     case SYS_LOCK_RELEASE:
       if(!verify_ptr(args[1],sizeof(struct lock))){
@@ -168,7 +166,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         args[1]=-1;
       }
       break;
-    case SYS_SEMA_INIT:
     case SYS_SEMA_DOWN:
     case SYS_SEMA_UP:
       if(!verify_ptr(args[1],sizeof(struct semaphore))){
@@ -278,9 +275,11 @@ static void syscall_exit(struct intr_frame* f UNUSED,uint32_t* args)
 {
   struct thread* cur=thread_current();
   int res=args[1];
-  printf("%s: exit(%d)\n",thread_current()->pcb->process_name,args[1]);
   cur->pcb->exit_return=res;
-  process_exit();
+  if(is_main_thread(cur,cur->pcb)){
+    pthread_exit_main();
+  }else
+    pthread_exit();
 }
 
 /* SYS_EXEC */
@@ -318,7 +317,8 @@ static void syscall_remove(struct intr_frame* f UNUSED,uint32_t* args)
 /* SYS_OPEN */
 static void syscall_open(struct intr_frame* f UNUSED,uint32_t* args)
 {
-  struct process* pcb=thread_current()->pcb;
+  struct thread* t=thread_current();
+  struct process* pcb=t->pcb;
   const char* fn=args[1];
   size_t name_len=strlen(fn);
   struct file* file=NULL;
@@ -328,18 +328,26 @@ static void syscall_open(struct intr_frame* f UNUSED,uint32_t* args)
     /* empty */
     return;
   }
+  
+  //enum intr_level old_level=intr_disable();
+  lock_acquire(&file_open_lock);
   fd=next_empty_fd_table(&pcb->fd_table);
   if(fd==-1){
     // fd_table is full
+    //intr_set_level(old_level);
+    lock_release(&file_open_lock);
     return;
   }
+  pcb->fd_table.fds[fd].fd_flags=1;
+  //intr_set_level(old_level);
+  
   file=filesys_open(fn);
+  lock_release(&file_open_lock);
   if(file==NULL){
     // open failed
+    pcb->fd_table.fds[fd].fd_flags=0;
     return ;
   }
-
-  pcb->fd_table.fds[fd].fd_flags=1;
   pcb->fd_table.fds[fd].file_ptr=file;
   f->eax=fd;
 
@@ -438,13 +446,18 @@ static void syscall_close(struct intr_frame* f UNUSED,uint32_t* args)
   int fd=args[1];
   struct file* file;
   f->eax=-1;
+  
+  enum intr_level old_level=intr_disable(); 
   file=get_file_fdt(&pcb->fd_table,fd);
   if(file==NULL){
+    intr_set_level(old_level);
     return;
   }
-  file_close(file);
   pcb->fd_table.fds[fd].fd_flags=0;
   pcb->fd_table.fds[fd].file_ptr=NULL;
+  intr_set_level(old_level);
+  file_close(file);
+  f->eax=1;
 
 }
 /* SYS_PRACTICE */
@@ -464,24 +477,35 @@ static void syscall_compute_e(struct intr_frame* f,uint32_t* args)
 /* SYS_PT_CREATE */
 static void syscall_pt_create(struct intr_frame* f,uint32_t* args)
 {
-  const char* name=args[1];
-  int priority=args[2];
-  thread_func* function=args[3];
-  void* aux=args[4];
-  f->eax=thread_create(name,priority,function,aux);
+  stub_fun sf= args[1];
+  pthread_fun tf=args[2];
+  void* arg=args[3];
+
+  f->eax=pthread_execute(sf,tf,arg);
+
+  struct thread* t=thread_current();
+  int size=list_size(&t->pcb->threads);
 }
 
 /* SYS_PT_EXIT */
 static void syscall_pt_exit(struct intr_frame* f,uint32_t* args)
 {
-  thread_exit();
+  struct thread* t=thread_current();
+  if(is_main_thread(t,t->pcb)){
+    pthread_exit_main();
+  }else
+    pthread_exit();
 }
 
 
 /* SYS_PT_JOIN */
 static void syscall_pt_join(struct intr_frame* f,uint32_t* args)
 {
-  ASSERT(!"<syscall_pt_join> not implement");
+  tid_t tid=args[1];
+  struct thread* t=thread_current();
+  int size=list_size(&t->pcb->threads);
+
+  f->eax=pthread_join(tid);
 }
 
 
@@ -489,21 +513,38 @@ static void syscall_pt_join(struct intr_frame* f,uint32_t* args)
 static void syscall_lock_init(struct intr_frame* f,uint32_t* args)
 {
   struct lock* lock=args[1];
+  if(lock==NULL){
+    f->eax=false;
+    return;
+  }
   lock_init(lock);
+  f->eax=true;
 }
 
 /* SYS_LOCK_ACQUIRE */
 static void syscall_lock_acquire(struct intr_frame* f,uint32_t* args)
 {
   struct lock* lock=args[1];
+  if(!lock_is_init(lock)||
+      lock_held_by_current_thread(lock)){
+    args[1]=1;
+    syscall_exit(f,args);
+  }
   lock_acquire(lock);
+  f->eax=true;
 }
 
 /* SYS_LOCK_RELEASE */
 static void syscall_lock_release(struct intr_frame* f,uint32_t* args)
 {
   struct lock* lock=args[1];
+  if(!lock_is_init(lock)||
+      !lock_held_by_current_thread(lock)){
+    args[1]=1;
+    syscall_exit(f,args);
+  }
   lock_release(lock);
+  f->eax=true;
 }
 
 /* SYS_SEMA_INIT */
@@ -511,21 +552,36 @@ static void syscall_sema_init(struct intr_frame* f,uint32_t* args)
 {
   struct semaphore* sema=args[1];
   int val=args[2];
+  if(sema==NULL||val<0){
+    f->eax=false;
+    return;
+  }
   sema_init(sema,val);
+  f->eax=true;
 }
 
 /* SYS_SEMA_DOWN */
 static void syscall_sema_down(struct intr_frame* f,uint32_t* args)
 {
   struct semaphore* sema=args[1];
+  if(!sema_is_init(sema)){
+    args[1]=1;
+    syscall_exit(f,args);
+  }
   sema_down(sema);
+  f->eax=true;
 }
 
 /* SYS_SEMA_UP */
 static void syscall_sema_up(struct intr_frame* f,uint32_t* args)
 {
   struct semaphore* sema=args[1];
+  if(!sema_is_init(sema)){
+    args[1]=1;
+    syscall_exit(f,args);
+  }
   sema_up(sema);
+  f->eax=true;
 }
 
 /* SYS_GET_TID */

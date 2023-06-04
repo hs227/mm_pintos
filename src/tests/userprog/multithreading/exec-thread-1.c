@@ -25,9 +25,16 @@ void thread_function(void* arg_) {
   msg("Child thread finishing");
 }
 
+int test_anchor(void){
+  int a=1;
+  int b=1;
+  return a+b;
+}
+
 int main(int argc, char* argv[]) {
   test_name = "exec-thread-1";
-
+  
+  test_anchor();
   if (argc != 2)
     fail("Incorrect usage");
 

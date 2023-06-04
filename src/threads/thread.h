@@ -107,7 +107,20 @@ struct thread {
   int64_t sleep_start;
   int64_t sleep_ticks;
  
+  /* for thread lock */
   struct list holding_lock_list;
+
+  /* for process hold */
+  struct list_elem pcb_elem;
+
+  /* for pthread join */
+  struct list join_waiter_list;
+
+  /* fot pthread exit */
+  struct pthread_exit_monitor* exit_monitor;
+
+  /* for pthread exit */
+  uint8_t* user_stack;
 
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
@@ -144,6 +157,7 @@ void thread_wakeup(void);
 bool thread_high_prio(const struct list_elem*,const struct list_elem*,void*);
 int thread_special_get_priority(struct thread*);
 
+struct thread* thread_self(tid_t);
 /* mycode end*/
 
 

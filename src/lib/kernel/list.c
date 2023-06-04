@@ -59,6 +59,16 @@ void list_init(struct list* list) {
   list->tail.next = NULL;
 }
 
+/* mycode: */
+bool list_is_init(struct list* list)
+{
+  ASSERT(list != NULL);
+  return list->head.prev==NULL&&
+    list->head.next!=NULL&&
+    list->tail.prev!=NULL&&
+    list->tail.next==NULL;
+}
+
 /* Returns the beginning of LIST.  */
 struct list_elem* list_begin(struct list* list) {
   ASSERT(list != NULL);

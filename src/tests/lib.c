@@ -13,7 +13,11 @@ bool quiet = false;
 bool syn_msg = false;
 char fpu[108];
 
-void console_init() { lock_check_init(&console_lock); }
+void console_init() {
+  int size1=sizeof(lock_t);
+  int size2=sizeof(sema_t);
+  lock_check_init(&console_lock); 
+}
 
 static void vmsg(const char* format, va_list args, const char* suffix) {
   /* We go to some trouble to stuff the entire message into a

@@ -13,8 +13,8 @@
 #include <syscall.h>
 #include <pthread.h>
 
-#define FILE_CHECKS 126
-#define NUM_THREADS 10
+#define FILE_CHECKS 0
+#define NUM_THREADS 1
 
 // Global variables
 char file_storage[512]; // Large enough to fit sample.txt

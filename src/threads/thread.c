@@ -201,7 +201,26 @@ void thread_wakeup(void)
   }
 }
 
-
+/* mycode: */
+struct thread* thread_self(tid_t id)
+{
+  struct list_elem* e;
+  struct thread* cur=thread_current();
+  if(id==TID_ERROR||list_empty(&all_list)){
+    return NULL;
+  }
+  int size=list_size(&all_list);
+  for(e=list_begin(&all_list);
+      e!=list_end(&all_list);
+      e=list_next(e))
+  {
+    struct thread* t=list_entry(e,struct thread,allelem);
+    if(t->tid==id){
+      return t;
+    }
+  }
+  return NULL;
+}
 
 
 /* Creates a new kernel thread named NAME with the given initial
@@ -255,7 +274,9 @@ tid_t thread_create(const char* name, int priority, thread_func* function, void*
   /* Add to run queue. */
   thread_unblock(t);
 
-  thread_yield();
+  if(active_sched_policy==SCHED_PRIO&&
+      priority > thread_get_priority())
+    thread_yield();
 
   return tid;
 }
@@ -537,6 +558,8 @@ static void init_thread(struct thread* t, const char* name, int priority) {
   ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT(name != NULL);
 
+
+
   memset(t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
   strlcpy(t->name, name, sizeof t->name);
@@ -544,8 +567,10 @@ static void init_thread(struct thread* t, const char* name, int priority) {
   t->priority = priority;
   t->pcb = NULL;
   t->father=!list_empty(&all_list)?thread_current()->pcb:NULL;
-   list_init(&t->holding_lock_list);
-  
+  list_init(&t->holding_lock_list);
+  list_init(&t->join_waiter_list);
+  t->exit_monitor=NULL;
+
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable();
@@ -574,9 +599,10 @@ static struct thread* thread_schedule_fifo(void) {
 
 /* Strict priority scheduler */
 static struct thread* thread_schedule_prio(void) {
-  if(!list_empty(&prio_ready_list))
+  if(!list_empty(&prio_ready_list)){
+    list_sort(&prio_ready_list,thread_high_prio,NULL);
     return list_entry(list_pop_front(&prio_ready_list),struct thread,elem);
-  else
+  }else
     return idle_thread;
 }
 
@@ -689,3 +715,7 @@ static tid_t allocate_tid(void) {
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
+
+
+
+

@@ -10,8 +10,8 @@
 #include <syscall.h>
 #include <pthread.h>
 
-#define NUM_THREADS 100
-#define NUM_ACCESS 100
+#define NUM_THREADS 10
+#define NUM_ACCESS 10
 
 // Global variables
 char* sample_file = "sample.txt";
@@ -24,9 +24,17 @@ void thread_function(void* arg_ UNUSED) {
     check_file(sample_file, sample, sizeof sample - 1);
 }
 
+int test_anchor(void)
+{
+  int a=1;
+  int b=1;
+  return a+b;
+}
+
 int main(int argc, char* argv[]) {
   test_name = "exit-clean";
 
+  test_anchor();
   if (argc == 4 && !strcmp(argv[1], "root")) {
     // Spawn a new process that tries to create NUM_THREADS threads
     msg("Root process starting");

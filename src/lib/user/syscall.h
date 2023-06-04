@@ -9,9 +9,16 @@
 typedef int pid_t;
 #define PID_ERROR ((pid_t)-1)
 
+
 /* Synchronization Types */
-typedef char lock_t;
-typedef char sema_t;
+typedef struct{
+  char data[32];
+} lock_t;
+
+
+typedef struct{
+  char data[20];
+}sema_t;
 
 /* Map region identifier. */
 typedef int mapid_t;

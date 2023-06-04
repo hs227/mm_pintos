@@ -1,5 +1,6 @@
 /* Tests join failure scenarios */
 
+/* i think the test is wrong */
 #include "tests/lib.h"
 #include "tests/main.h"
 #include <syscall.h>
@@ -77,6 +78,7 @@ void test_main(void) {
 
   // Spawn another thread that joins on the hanging thread
   // This one should fail
+  // i think it should success
   struct joiner_thread_data jtd_fail;
   jtd_fail.tid = child_tid;
   jtd_fail.should_succeed = false;

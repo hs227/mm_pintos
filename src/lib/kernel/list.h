@@ -122,6 +122,7 @@ struct list {
   }
 
 void list_init(struct list*);
+bool list_is_init(struct list*);
 
 /* List traversal. */
 struct list_elem* list_begin(struct list*);
